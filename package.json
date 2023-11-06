@@ -1,0 +1,17 @@
+{
+  "name": "pilgurd",
+  "version": "1.0.0",
+  "description": "pilgurd",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "hagiwaratakayuki",
+  "license": "MIT",
+  "devDependencies": {
+    "mocha": "^10.2.0"
+  },
+  "dependencies": {
+    "deepmerge": "^4.3.1"
+  }
+}
