@@ -1,8 +1,8 @@
 
 const merge = require('deepmerge');
-const { JSONSerializer } = require('../json_serialize')
+const { JSONSerializer } = require('../json_serializer')
 /**
- * @typedef {import('./save_and_load_config').BuilderConfigMap} BuilderConfigMap
+ * @typedef {import('./base_type').BuilderConfigMap} BuilderConfigMap
 
  */
 
@@ -20,7 +20,7 @@ class Brige extends JSONSerializer {
         this.resetPosition();
 
         /**
-         * @type {{[loopStepPath: string]: import('./save_and_load_config').LoopStep}}
+         * @type {{[loopStepPath: string]: import('./base_type').LoopStep}}
          */
         this.loopStepMap = {}
 
@@ -35,6 +35,9 @@ class Brige extends JSONSerializer {
         * @type {number[]}
         */
         this.loopStepPath = [-1];
+    }
+    getLoopStepPath() {
+        return [].concat(this.loopStepPath)
     }
     /**
     * 
@@ -108,7 +111,7 @@ class Saver extends Brige {
     }
     /**
      * 
-     * @param {import('./save_and_load_config').SubLoopType?} subLoopType
+     * @param {import('./base_type').SubLoopType?} subLoopType
      */
     startSubLoop(subLoopType) {
         const parentLoopStepPath = this._getLoopStepPathString();
@@ -133,13 +136,29 @@ class Saver extends Brige {
  * @implements {import('./base').BasicLoader}
  */
 class Loader extends Brige {
-    constructor() {
+    /**
+     * 
+     * @param {boolean} isFirst 
+     */
+    constructor(isFirst = false) {
         super();
-        this.positionState = { isEnd: false, isSubLoopOut: false }
+        this._isFirst = isFirst
+        this.positionState = { isEnd: false, isSubLoopOut: false };
     }
     fromJSON(jsonData) {
+
         super.fromJSON(jsonData);
-        this.resetPosition()
+        if (this._isFirst === true) {
+            this.resetPosition();
+        }
+
+    }
+    toJSON() {
+        /**
+         * @type {Array<keyof Loader>}
+         */
+        const filters = ['_cache', '_cacheKey', '_isFirst'];
+        return this._toJSON(filters);
     }
 
     forward() {
@@ -192,9 +211,9 @@ class Loader extends Brige {
             isEnd = this._stepCountMap[this._getStepCountKey()] - 1 === this.loopStepPath[0];
 
         }
-        const now = this.getNow();
+
         this.positionState = { isEnd, isSubLoopOut }
-        return { now, isEnd, isSubLoopOut }
+        return this.getNow();
     }
     back() {
         const tailIndex = this.loopStepPath.length - 1;
@@ -262,24 +281,35 @@ class Loader extends Brige {
 
 
     }
+    /**
+     * 
+     * @returns {import('../plugin').PlugIns}
+     */
     getNow() {
         const loopStepPath = this._getLoopStepPathString();
-        return this.loopStepMap[loopStepPath]
+        if (this._cacheKey === loopStepPath) {
+            return this._cache
+
+        }
+        const loopStep = this.loopStepMap[loopStepPath]
+
+        this._cache = this.buildStep(loopStep);
+        return this._cache;
     }
     /**
      * 
-     * @param {import('./save_and_load_config').LoopStep} loopStep 
+     * @param {import('./base_type').LoopStep} loopStep 
      */
     buildStep(loopStep) {
         const builderConfig = this.builderConfigMap[loopStep.builderID];
-        return builderConfig.builder(builderConfig.options)
+        return builderConfig.builder(loopStep.options)
     }
     /**
-     * @typedef {import('./save_and_load_config').DocumentLoader} DocumentLoader
-     * @param {import('./save_and_load_config').LoopStep} loopStep
+     * @typedef {import('./base_type').DocumentLoader} DocumentLoader
+     * @param {import('./base_type').LoopStep} loopStep
      * @param {string} language 
      * @param {Array<keyof DocumentLoader>} targets
-     * @returns {import('./save_and_load_config').Document} 
+     * @returns {import('./base_type').Document} 
      */
     getDocument(loopStep, language, targets = ['title', 'description']) {
 
@@ -295,10 +325,10 @@ class Loader extends Brige {
     }
     /**
     * 
-    * @param {import('./save_and_load_config').LoopStep[]} loopSteps
+    * @param {import('./base_type').LoopStep[]} loopSteps
     * @param {string} language 
     * @param {Array<keyof DocumentLoader>} targets
-    * @returns {import('./save_and_load_config').Document[]} 
+    * @returns {import('./base_type').Document[]} 
     */
     getDocumentList(loopSteps, language, targets = ['title', 'description']) {
         const ret = [];

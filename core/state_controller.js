@@ -1,27 +1,38 @@
 const { History } = require('./history')
 const { StateEmitter } = require('./state_emitter')
+const { Context } = require('./context');
+const { JSONSerializer } = require('./json_serializer');
 
 
 
 /**
  * @typedef {import("./state_emitter").state} state
+ *
+ * @type {Array<state>}
  */
 
-
-const stateKeys = ["start", "in", "keep", "out", "gosub", "outback", "cancelback", "end", "out", "cancel"]
-
+const stateKeys = ["start", "in", "keep", "out", "forwardToSub", "outback", "cancelback", "end", "out", "cancel"]
 
 
+/**
+ *  @typedef {import("./plugin").StateResponse} StateResponse
+ */
 
-class StateController {
+class StateController extends JSONSerializer {
     /**
-     *  
-     * @param {Function} emitterCls
+     * @typedef {import('./looploader/base_type').BasicLoader} BasicLoader
+     * @param {BasicLoader} loader 
+     * @param {Function} contextClass  
+     * @param {Function} emitterClass
      * @param {Function} historyClass 
      * 
      */
-    constructor(emitterCls, historyClass, datas) {
-
+    constructor(loader, contextClass = Context, emitterClass = StateEmitter, historyClass = History) {
+        super();
+        /**
+         * @type {BasicLoader}
+         */
+        this.loader = loader;
 
         for (const stateKey of stateKeys) {
             this[stateKey] = this[stateKey].bind(this)
@@ -29,7 +40,7 @@ class StateController {
         /**
          * @type {import("./state_emitter").StateEmitter}
          */
-        this._emitter = new emitterCls(this)
+        this._emitter = new emitterClass(this)
 
 
         /**
@@ -38,100 +49,138 @@ class StateController {
         this._history = new historyClass();
 
 
-        this._cancelbacks = []
-        this._outbacks = []
 
-        this._func = null
+
+
+        this._context = new contextClass(this._history)
+
 
 
 
     }
+
     toJSON() {
-        const response = {};
-        for (const key in this) {
-            const prop = this[key]
-            if (typeof prop === "function" || prop.isJSONIgnore || key === "_func") {
-                continue;
-
-            }
-            if ('toJSON' in prop === true) {
-                response[key] = prop.toJSON();
-            }
-            else {
-                response[key] = prop;
-            }
-
-
-
-        }
-        return response;
+        /**
+         * @type {Array<keyof StateController>}
+         */
+        const filters = ['_plugin'];
+        return this._toJSON(filters)
     }
 
 
+
     /**
-     * 
-     * @param {Object} jsonData 
+     * @param {any} request
+     * @param {any?} resumeData
      */
-    fromJSON(jsonData) {
-        for (const [key, data] of Object.entries(jsonData)) {
-
-            if ('fromJSON' in this[key]) {
-                this[key].fromJSON(data);
-            }
-            else {
-                this[key] = data
-            }
-
-
+    run(request, resumeData) {
+        if (resumeData) {
+            this.fromJSON(resumeData);
         }
 
-
-    }
-    /**
-     * @param {{state?: state}?} datas 
-     */
-    run(datas) {
-        if (datas) {
-            this.fromJSON(datas);
-        }
-        return this._emitter.run()
+        return this._emitter.run(request)
     }
     destroy() {
         for (const stateKey of stateKeys) {
             this[stateKey] = null
         }
     }
-    start() {
-        this._func();
+    start(request) {
+        return this._emitter.emit("in", request);
 
     }
-    in() {
+    async in(request) {
+        let responses = [];
+        let now = this.loader.forward();
+        while (this.loader.positionState.isSubLoopOut === true) {
+
+            const _responses = await this._emitter.emit("outback", request);
+            responses = responses.concat(_responses);
+            if (this._emitter.getState() === "out") {
+                const _responses = await this._checkOut(request, now);
+                responses = responses.concat(_responses);
+                now = this.loader.forward();
+            }
+            else {
+                const _responses = await this._emitter.run(request)
+                responses.concat(_responses);
+                return responses;
+            }
+
+
+        }
+
+        /**
+         * @type {StateResponse}
+         */
+        const response = await now.in(request, this._context);
+        this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
+        this._emitter.setState(response.state);
+        responses.push(response)
+        const _responses = await this._checkOut(request, now);
+        responses = responses.concat(_responses)
+
+        return responses
 
     }
-    keep() {
+    async keep(request) {
+        let responses = []
+        const now = this.loader.getNow();
+        /**
+         * @type {{response:StateResponse}}
+         */
+        const { response: headResponse } = this._history.getHead()
+
+        /**
+         * @type {StateResponse}
+         */
+        const response = await now[headResponse.callback || "keep"](request, this._context);
+        this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
+        this._emitter.setState(response.state);
+        responses.push(response);
+        const _responses = await this._checkOut(request, now);
+        responses = responses.concat(_responses)
+
+        return responses;
+    }
+    async _checkOut(request, now) {
+        let responses = []
+        if (this._emitter.getState() === 'out') {
+            if (now.out) {
+                const _responses = await this._emitter.run(request);
+                if (_responses) {
+                    responses = responses.concat(_responses);
+                }
+
+            }
+            this._emitter.setState("in");
+
+
+        }
+        return responses
+    }
+    async out(request) {
+        const responses = []
+        const now = this.loader.getNow();
+        const response = await now.out(request, this._context);
+        responses.push(response);
+        return responses;
+    }
+    async forwardToSub() {
 
     }
-    out() {
+    async outback() {
 
     }
-    gosub() {
+    async cancelback() {
 
     }
-    outback() {
+    async end() {
 
     }
-    cancelback() {
-
-    }
-    end() {
-
-    }
-    out() {
-
-    }
-    cancel() {
+    async cancel() {
 
     }
 }
 
-module.exports = { Executer: StateController };
+module.exports = { StateController };

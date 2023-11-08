@@ -1,9 +1,9 @@
+const { JSONSerializer } = require('./json_serializer');
 
-
-class History {
+class History extends JSONSerializer {
 
     constructor() {
-
+        super();
         this._histories = [[]];
         this._historyId = 0;
         this._cursor = -1;
@@ -21,27 +21,18 @@ class History {
         this._breakPointsList = {}
 
     }
-    fromJSON(jsonData) {
-        for (const key of Object.keys(this)) {
-            if (key.indexOf('_') !== 0) {
-                continue;
-            }
-            const proptype = typeof this[key];
-            if (proptype === 'function' || proptype === 'undefined') {
-                continue
-            }
-            this[key] = jsonData[key]
-        }
+    push(history) {
+        const nowHistories = this._getNowHistories();
+        nowHistories.push(history);
+        this._cursor = nowHistories.length - 1
 
     }
-    push(data) {
-        const nowHistory = this._getNowHistory();
-        nowHistory.push(data);
-        this._cursor = nowHistory.length - 1
-
+    getHead() {
+        const nowHistories = this._getNowHistories();
+        return nowHistories[nowHistories.length - 1]
     }
     startBranch(data) {
-        const branch = this._getNowHistory().concat([data]);
+        const branch = this._getNowHistories().concat([data]);
         this._initBranch(branch);
 
 
@@ -87,8 +78,8 @@ class History {
         return false;
     }
 
-    _getNowHistory() {
-        this._histories[this._historyId];
+    _getNowHistories() {
+        return this._histories[this._historyId];
     }
 
 

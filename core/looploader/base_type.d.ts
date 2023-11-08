@@ -1,4 +1,4 @@
-import { Builder } from "../plugin";
+import { Builder, PlugIns } from "../plugin";
 
 
 
@@ -29,6 +29,33 @@ export type LoopStep = {
     builderID: string
     options: Object
     subLoopType?: SubLoopType
-    subloops?: string[] // list of loop step positional id
+
+
+}
+
+export type PositionState {
+    isEnd: boolean
+    isSubLoopOut: boolean
+}
+export type LoopStepPath = number[]
+
+
+
+export interface BasicLoader {
+
+
+    positionState: PositionState
+    getLoopStepPath(): LoopStepPath
+    setLoopStepPath(LoopStepPath: LoopStepPath): void
+    forward(): PlugIns
+    back(): PlugIns
+    backAll(): PlugIns
+
+    forwardToSub(subid?: any): PlugIns
+    getNow(): PlugIns
+    buildStep(loopStep: LoopStep): PlugIns
+
+
+
 
 }

@@ -22,7 +22,14 @@ class JSONSerializer {
             if (elementType === 'undefined' || elementType === 'function') {
                 continue;
             }
-            ret[key] = element;
+            if (elementType === 'object' && 'toJSON' in element === true) {
+                ret[key] = element.toJSON();
+
+            }
+            else {
+                ret[key] = element;
+            }
+
 
         }
         return ret;

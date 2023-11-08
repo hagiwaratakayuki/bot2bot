@@ -11,7 +11,7 @@ describe('Save and Load', function () {
 
         }
         /**
-         * @type {import('./save_and_load_config').DocumentLoader}
+         * @type {import('./base_type').DocumentLoader}
          */
         const mockDocumentLoader = {
             title: function (language, options) {

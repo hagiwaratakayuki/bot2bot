@@ -1,13 +1,16 @@
 /**
- * @typedef {"start" | "in" | "keep" | "out" | "gosub" | "outback" | "cancelback" | "end"| "out" | "cancel"} state
+ * @typedef {"start" | "in" | "keep" | "out" | "forwardToSub" | "outback" | "cancelback" | "end"| "out" | "cancel"} state
  * @typedef {{[stateKey in state]: (data:any) => void }} stateCallbacks
  */
 
-class StateEmitter {
+const { JSONSerializer } = require("./json_serializer");
+
+class StateEmitter extends JSONSerializer {
     /**
      * @param  {stateCallbacks} callbacks
      */
     constructor(callbacks, state) {
+        super();
         /**
          * @type {state}
          */
@@ -21,26 +24,36 @@ class StateEmitter {
     /**
      * 
      * @param {state} state 
-     * @param {any} data 
+     * @param {any} data
+     * @returns {Promise<any>} 
      */
     emit(state, data) {
         return this._callbacks[state](data);
 
 
     }
-    run() {
-        return this.emit(this._state)
+    run(data) {
+        return this.emit(this._state, data)
     }
     toJSON() {
-        return this._state;
+        /**
+         * @type {Array<keyof StateEmitter>}
+         */
+        const filters = ['_callbacks'];
+        return this._toJSON(filters);
     }
+
     /**
      * 
-     * @param {state} jsonData 
+     * @param {state?} state 
      */
-    fromJSON(jsonData) {
-        this._state = jsonData
+    setState(state) {
+        this._state = state || "out";
     }
+    getState() {
+        return this._state;
+    }
+
 }
 
 module.exports = { StateEmitter }
