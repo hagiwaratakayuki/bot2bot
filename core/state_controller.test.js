@@ -4,10 +4,12 @@ const { Saver, Loader } = require('./looploader/save_and_load');
 
 
 
-/**
- * @typedef {import('./plugin').StateResponse} StateResponse
- */
 
+/**
+ * @typedef {import('./state_controller').StateResponse} StateResponse
+ * @typedef {{isForwardToSub?:true subid?:any}} SubloopRequest
+ * @typedef {[SubloopRequest, import('./context').Context]} MockArg
+ */
 describe('Executer', function () {
 
     it('execute first', async function () {
@@ -16,7 +18,11 @@ describe('Executer', function () {
         let outArgs;
         let keepArgs;
         let callBackName;
-
+        /**
+         * 
+         * @param {MockArg} args 
+         * @returns 
+         */
         function keepfunc(args) {
             keepArgs = args;
             /**
@@ -27,7 +33,7 @@ describe('Executer', function () {
             if (args[0].isForwardToSub === true) {
                 response.state = "forwardToSub"
                 if (args[0].subid) {
-                    response.s
+                    response.subid = args[0].subid
                 }
 
             }
@@ -105,8 +111,10 @@ describe('Executer', function () {
 
         saver.endSubLoop();
 
-        saver.addLoopStep('test', { loop: 3 })
+        saver.addLoopStep('test', { loop: 3, isKeep: true })
         saver.startSubLoop('selection');
+        saver.addLoopStep('test', { selectoption: 1 });
+        saver.addLoopStep('test', { selectoption: 2 });
 
 
         saver.endSubLoop();
@@ -133,9 +141,19 @@ describe('Executer', function () {
         controlller = new StateController(loader);
 
         res = await controlller.run({}, jsonData);
+        res = await controlller.run({ isForwardToSub: true });
         res = await controlller.run({});
+        res = await controlller.run({});
+        /**
+         * @type {SubloopRequest}
+         */
+        let mockRequest = { isForwardToSub: true, subid: 1 }
+
+        res = await controlller.run(mockRequest);
         console.log(keepArgs)
+        console.log(inArgs)
         console.log(mockBulderArgs);
+        console.log(controlller.loader.positionState)
 
 
 

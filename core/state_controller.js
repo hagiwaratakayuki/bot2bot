@@ -11,7 +11,7 @@ const { JSONSerializer } = require('./json_serializer');
  * @type {Array<state>}
  */
 
-const stateKeys = ["start", "in", "keep", "out", "forwardToSub", "outback", "cancelback", "end", "out", "cancel"]
+const stateKeys = ["start", "in", "keep", "out", "forwardToSub", "returnFromSub", "cancelback", "end", "out", "cancel"]
 
 
 /**
@@ -51,7 +51,9 @@ class StateController extends JSONSerializer {
 
 
 
-
+        /**
+         * @type {Context}
+         */
         this._context = new contextClass(this._history)
 
 
@@ -94,10 +96,10 @@ class StateController extends JSONSerializer {
         let now = this.loader.forward();
         while (this.loader.positionState.isSubLoopOut === true) {
 
-            const _responses = await this._emitter.emit("outback", request);
+            const _responses = await this._emitter.emit("returnFromSub", request);
             responses = responses.concat(_responses);
             if (this._emitter.getState() === "out") {
-                const _responses = await this._checkOut(request, now);
+                const _responses = await this._checkState(request, _response, now);
                 responses = responses.concat(_responses);
                 now = this.loader.forward();
             }
@@ -109,18 +111,10 @@ class StateController extends JSONSerializer {
 
 
         }
+        const _responses = await this._inProcess(request, now);
+        return responses.concat(_responses);
 
-        /**
-         * @type {StateResponse}
-         */
-        const response = await now.in(request, this._context);
-        this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
-        this._emitter.setState(response.state);
-        responses.push(response)
-        const _responses = await this._checkOut(request, now);
-        responses = responses.concat(_responses)
 
-        return responses
 
     }
     async keep(request) {
@@ -138,14 +132,24 @@ class StateController extends JSONSerializer {
         this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
         this._emitter.setState(response.state);
         responses.push(response);
-        const _responses = await this._checkOut(request, now);
+
+        const _responses = await this._checkState(request, response, now);
         responses = responses.concat(_responses)
 
         return responses;
     }
-    async _checkOut(request, now) {
-        let responses = []
-        if (this._emitter.getState() === 'out') {
+    /**
+     * 
+     * @param {any} request
+     * @param {StateResponse} response  
+     * @param {import('./plugin').PlugIns} now
+     *  
+     * @returns 
+     */
+    async _checkState(request, response, now) {
+        let responses = [];
+        const state = this._emitter.getState();
+        if (state === 'out') {
             if (now.out) {
                 const _responses = await this._emitter.run(request);
                 if (_responses) {
@@ -157,6 +161,17 @@ class StateController extends JSONSerializer {
 
 
         }
+        if (state === "forwardToSub") {
+
+            const _responses = this._emitter.run(request, response.subid)
+            if (_responses) {
+                responses = responses.concat(_responses);
+            }
+
+
+
+        }
+
         return responses
     }
     async out(request) {
@@ -166,10 +181,50 @@ class StateController extends JSONSerializer {
         responses.push(response);
         return responses;
     }
-    async forwardToSub() {
+    async forwardToSub(request, subid) {
+        const now = this.loader.getNow()
+        const responses = []
+        if (now.forwardToSub) {
+            const _response = await now.forwardToSub(request, subid);
+            responses.push(_response)
+
+        }
+        const subloopStep = this.loader.forwardToSub(subid)
+        this._context.loopIn()
+        const _responses = await this._inProcess(request, subloopStep);
+        return responses.concat(_responses);
+
 
     }
-    async outback() {
+    /**
+     * 
+     * @param {any} request 
+     * @param {import('./plugin').PlugIns} now 
+     * @returns 
+     */
+    async _inProcess(request, now) {
+        const response = now.in(request, this._context)
+        const responses = [];
+        this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
+        this._emitter.setState(response.state);
+        responses.push(response)
+        const _responses = await this._checkState(request, response, now);
+
+
+        return responses.concat(_responses)
+    }
+    async returnFromSub(request) {
+        const responses = []
+        const now = this.loader.getNow();
+        this._context.loopOut();
+        if (now.returnFromSub) {
+            const response = await now.returnFromSub(request);
+            this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
+            this._emitter.setState(response.state);
+            responses.push(response);
+        }
+        return responses;
+
 
     }
     async cancelback() {

@@ -1,5 +1,5 @@
 /**
- * @typedef {"start" | "in" | "keep" | "out" | "forwardToSub" | "outback" | "cancelback" | "end"| "out" | "cancel"} state
+ * @typedef {"start" | "in" | "keep" | "out" | "forwardToSub" | "returnFromSub" | "cancelback" | "end"| "out" | "cancel"} state
  * @typedef {{[stateKey in state]: (data:any) => void }} stateCallbacks
  */
 
@@ -24,16 +24,16 @@ class StateEmitter extends JSONSerializer {
     /**
      * 
      * @param {state} state 
-     * @param {any} data
+     * @param {any[]} datas
      * @returns {Promise<any>} 
      */
-    emit(state, data) {
-        return this._callbacks[state](data);
+    emit(state, ...datas) {
+        return this._callbacks[state](...datas);
 
 
     }
-    run(data) {
-        return this.emit(this._state, data)
+    run(...datas) {
+        return this.emit(this._state, ...datas)
     }
     toJSON() {
         /**
