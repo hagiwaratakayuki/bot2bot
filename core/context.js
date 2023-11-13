@@ -29,10 +29,10 @@ class Context extends JSONSerializer {
 
     /**
      * 
-     * @param {any} data 
+     * @param {any?} loopData 
      */
-    forwardToSub(data = {}) {
-        this._loopDatas.push(datas)
+    forwardToSub(loopData) {
+        this._loopDatas.push(loopData || {})
         this._subLoopData = null
 
         this._datas.push({})

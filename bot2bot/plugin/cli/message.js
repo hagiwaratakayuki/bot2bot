@@ -5,9 +5,10 @@ const readlineSync = require('readline-sync');
  * @typedef {import("../../message").CreaterRequest} CreaterRequest
  * @typedef {import("../../../core/plugin").StateResponse} StateResponse
  * @typedef {import("../../../core/plugin").PlugIns} PlugIns
- * @typedef {import("../../../core/looploader/base_type").BuilderConfigMap} BuilderConfigMap
+ * @typedef {import("../../../core/looploader/base_type").BuilderConfig} BuilderConfig
  * @typedef {import("../../../core/looploader/save_and_load").Saver} Saver
  * @typedef {{message:string}} MessageOption
+ * @typedef {import('../../../core/looploader/base_type').BasicLoader} Loader
  */
 const name = "message"
 
@@ -17,14 +18,18 @@ const name = "message"
  */
 function createrRegister(saver) {
     /**
-     * @type {BuilderConfigMap}
+     * @type {BuilderConfig}
      */
-    const config = {}
-    config[name] = {
-        builder: createrBuilder
+    const config = {
+        builder: createrBuilder,
+        documentLoader: {
+            title: function () {
+                return "message"
+            }
+        }
     }
 
-    saver.buildersRegistration(config)
+    saver.builderRegistration(name, config)
 }
 
 
@@ -33,9 +38,9 @@ function createrRegister(saver) {
  * @param {CreaterRequest} request 
  */
 
-function createrBuilder(request) {
+function createrBuilder() {
     return {
-        in: function () {
+        in: function (request) {
             const message = readlineSync.question('please input message: ')
             while (!message) {
                 readlineSync.question('please input message: ')
@@ -47,6 +52,22 @@ function createrBuilder(request) {
             request.saver.addLoopStep(name, options)
         }
     }
+
+}
+
+/**
+ * 
+ * @param {Loader} loader 
+ */
+function executeRegister(loader) {
+    loader.builderRegistration(name, {
+        builder: executerBuilder,
+        documentLoader: {
+            title: function () {
+                return "message"
+            }
+        }
+    })
 
 }
 /**
@@ -65,3 +86,5 @@ function executerBuilder(options) {
     return res
 
 }
+
+module.exports = { name, createrRegister, executeRegister }

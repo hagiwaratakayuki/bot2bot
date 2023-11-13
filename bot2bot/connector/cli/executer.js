@@ -6,7 +6,7 @@ const { StateController } = require("../../../core/state_controller");
 const { executeRouter } = require("../../plugin/cli");
 function main() {
     execute().then(function () {
-        exit();
+        process.exit();
     })
 }
 
@@ -29,3 +29,4 @@ async function execute() {
 if (require.main === module) {
     main();
 }
+module.exports = execute

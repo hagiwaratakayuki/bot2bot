@@ -13,7 +13,7 @@ function main() {
     })
 }
 
-async function create(jsonData) {
+async function create() {
     const saver = new Saver()
     const loader = new Loader(true);
     const creater = new Creater(saver, loader)
@@ -31,3 +31,5 @@ async function create(jsonData) {
 if (require.main === module) {
     main();
 }
+
+module.exports = create

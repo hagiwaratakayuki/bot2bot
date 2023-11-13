@@ -1,13 +1,16 @@
 const { Saver } = require("../../../core/looploader/save_and_load")
 const select = require("./select")
 const parroting = require("./parroting")
+const message = require("./message");
 const createRegisters = [
     select.createrRegister,
-    parroting.createrRegister
+    parroting.createrRegister,
+    message.createrRegister
 ]
 
 const executeRegisters = [
-    parroting.executeRegister
+    parroting.executeRegister,
+    message.executeRegister
 ]
 /**
  * 
@@ -27,7 +30,7 @@ function createRouter(loader, saver) {
     routeSaver.addLoopStep(select.name, {})
     routeSaver.startSubLoop('selection');
     routeSaver.addLoopStep(parroting.name, {})
-
+    routeSaver.addLoopStep(message.name, {})
     loader.fromJSON(routeSaver.toJSON());
 
 }
