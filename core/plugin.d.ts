@@ -3,14 +3,14 @@ import { state } from "./state_emitter";
 
 
 export type PlugIns = Partial<{
-    [k in state]: any
+    [k in state]: Function
 }> & {
-    in: any
+    in: Function
 }
 
-export type StateResponse = {
+export type StateResponse<T> = {
     state?: state
     subid?: number
-    callback?: string //Funcname Use when state is keep. Default is "keep"
+    callback?: keyof T //Funcname Use when state is keep. Default is "keep"
 }
 

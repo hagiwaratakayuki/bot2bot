@@ -3,6 +3,9 @@ const merge = require('deepmerge');
 const { JSONSerializer } = require('../json_serializer')
 /**
  * @typedef {import('./base_type').BuilderConfigMap} BuilderConfigMap
+ * @typedef {import('./base_type').DocumentPropertis} DocumentPropertis
+ * @typedef {import('./base_type').Document} Document
+ * @typedef {import('./base_type').SubLoopDocumentList} SubLoopDocumentList
 
  */
 
@@ -12,6 +15,10 @@ class Brige extends JSONSerializer {
 
     constructor() {
         super();
+        /**
+         * @type {import('./base_type').BuilderConfig[]}
+         */
+        this._startConfigures = []
 
         /**
          * @type {BuilderConfigMap}
@@ -43,11 +50,18 @@ class Brige extends JSONSerializer {
     * 
     * @param {BuilderConfigMap} builderConfigMap 
     */
-    builderRegistration(builderConfigMap) {
+    buildersRegistration(builderConfigMap) {
         this.builderConfigMap = Object.assign(this.builderConfigMap, builderConfigMap);
     }
-    toJSON() {
-        return this._toJSON(["builderConfigMap"]);
+    /**
+    * @param {any} builderID 
+    * @param {import('./base_type').BuilderConfig} builderConfig 
+    */
+    builderRegistration(builderID, builderConfig) {
+        this.builderConfigMap[builderID] = builderConfig
+    }
+    _toJSON(filters = []) {
+        return super._toJSON(["builderConfigMap"].concat(filters));
     }
 
     /**
@@ -81,8 +95,19 @@ class Brige extends JSONSerializer {
 
 
 
+
 }
 class Saver extends Brige {
+    /**
+     * 
+     * @param {string} builderID
+     * @param {Object?} options
+     *  
+    */
+    addStartStep(builderID, options) {
+        const _options = this._mergeOptions(builderID, options)
+        this._startConfigures.push({ builderID, options: _options })
+    }
 
     /**
      * 
@@ -92,14 +117,9 @@ class Saver extends Brige {
      */
     addLoopStep(builderID, options) {
         this.loopStepPath[this.loopStepPath.length - 1] += 1;
-        const { options: basicOptions, mergeFunction = this._defaultMerge } = this.builderConfigMap[builderID]
-        let _options
-        if (options && basicOptions) {
-            _options = mergeFunction(basicOptions || {}, options)
-        }
-        else if (options) {
-            _options = options
-        }
+
+        let _options = this._mergeOptions(builderID, options);
+
         const loopStepPath = this._getLoopStepPathString();
 
         this.loopStepMap[loopStepPath] = { builderID, options: _options }
@@ -108,6 +128,17 @@ class Saver extends Brige {
 
 
 
+    }
+    _mergeOptions(builderID, options) {
+        const { options: basicOptions, mergeFunction = this._defaultMerge } = this.builderConfigMap[builderID]
+        let _options
+        if (options && basicOptions) {
+            _options = mergeFunction(basicOptions || {}, options)
+        }
+        else if (options) {
+            _options = options
+        }
+        return options;
     }
     /**
      * 
@@ -136,10 +167,6 @@ class Saver extends Brige {
  * @implements {import('./base').BasicLoader}
  */
 class Loader extends Brige {
-    /**
-     * 
-     * @param {boolean} isFirst 
-     */
     constructor(isFirst = false) {
         super();
         this._isFirst = isFirst
@@ -158,7 +185,7 @@ class Loader extends Brige {
          * @type {Array<keyof Loader>}
          */
         const filters = ['_cache', '_cacheKey', '_isFirst'];
-        return this._toJSON(filters);
+        return super._toJSON(filters);
     }
 
     forward() {
@@ -277,6 +304,8 @@ class Loader extends Brige {
         else {
             this.loopStepPath.push(subLoopNumber);
         }
+        this.positionState.isEnd = false;
+        this.positionState.isSubLoopOut = false
         return this.getNow()
 
 
@@ -294,7 +323,15 @@ class Loader extends Brige {
         const loopStep = this.loopStepMap[loopStepPath]
 
         this._cache = this.buildStep(loopStep);
+        this._cacheKey = loopStepPath;
         return this._cache;
+    }
+    getStartStep() {
+        const ret = []
+        for (const loopStep of this._startConfigures) {
+            ret.push(this.buildStep(loopStep))
+        }
+        return ret;
     }
     /**
      * 
@@ -305,38 +342,56 @@ class Loader extends Brige {
         return builderConfig.builder(loopStep.options)
     }
     /**
-     * @typedef {import('./base_type').DocumentLoader} DocumentLoader
-     * @param {import('./base_type').LoopStep} loopStep
-     * @param {string} language 
-     * @param {Array<keyof DocumentLoader>} targets
-     * @returns {import('./base_type').Document} 
-     */
-    getDocument(loopStep, language, targets = ['title', 'description']) {
-
-        const ret = {};
-
-        const { documentLoader, options } = this.builderConfigMap[loopStep.builderID];
-        for (const target of targets) {
-            ret[target] = documentLoader[target](language, options);
+    * 
+   
+    * @param {string} language 
+    * @param {DocumentPropertis?} filter
+    * @returns {SubLoopDocumentList}  
+    */
+    getSubLoopDocuments(language, filter = ["description", "title"]) {
+        const key = this._getLoopStepPathString();
+        const subLoopsCount = this._stepCountMap[key]
+        /**
+         * @type {SubLoopDocumentList}
+         */
+        const documentList = [];
+        for (let index = 0; index < subLoopsCount; index++) {
+            const document = this.getSubLoopDocument(index, language, filter);
+            documentList.push({ subid: index, document });
         }
-        return ret;
-
+        return documentList;
 
     }
     /**
-    * 
-    * @param {import('./base_type').LoopStep[]} loopSteps
-    * @param {string} language 
-    * @param {Array<keyof DocumentLoader>} targets
-    * @returns {import('./base_type').Document[]} 
-    */
-    getDocumentList(loopSteps, language, targets = ['title', 'description']) {
-        const ret = [];
-        for (const loopStep of loopSteps) {
-            ret.push(this.getDocument(loopStep, language, targets))
+     * 
+     * @param {any} subid 
+     * @param {string} language 
+     * @param {DocumentPropertis?} filter
+     * @returns {SubLoopDocumentList}  
+     */
+    getSubLoopDocument(subid, language, filter = ["description", "title"]) {
+        const document = {}
+        const key = this._getLoopStepPathString(this.loopStepPath.concat([subid]));
+        const { builderID, options } = this.loopStepMap[key];
+
+        const { documentLoader } = this.builderConfigMap[builderID]
+
+        if (!documentLoader) {
+            throw builderID + " has no document";
+
         }
-        return ret;
+        for (const property of filter) {
+            document[property] = documentLoader[property].call(language, options)
+        }
+        return document;
+
+
+
+
     }
+
+
+
 }
 
 

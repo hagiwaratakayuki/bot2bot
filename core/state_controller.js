@@ -7,7 +7,9 @@ const { JSONSerializer } = require('./json_serializer');
 
 /**
  * @typedef {import("./state_emitter").state} state
- *
+ * @typedef {import("./plugin").PlugIns} PlugIns
+ */
+/** 
  * @type {Array<state>}
  */
 
@@ -87,8 +89,17 @@ class StateController extends JSONSerializer {
             this[stateKey] = null
         }
     }
-    start(request) {
-        return this._emitter.emit("in", request);
+    async start(request) {
+        const responses = []
+        for (const plugins of this.loader.getStartStep()) {
+            const response = await plugins.start(request, this._context);
+            if (response) {
+                responses.push(response)
+            }
+
+        }
+        const inResponses = await this._emitter.emit("in", request);
+        return responses.concat(inResponses)
 
     }
     async in(request) {
@@ -99,8 +110,12 @@ class StateController extends JSONSerializer {
             const _responses = await this._emitter.emit("returnFromSub", request);
             responses = responses.concat(_responses);
             if (this._emitter.getState() === "out") {
-                const _responses = await this._checkState(request, _response, now);
+                const _responses = await this._checkOut(request, now);
                 responses = responses.concat(_responses);
+                if (this.isEnd() === true) {
+                    return responses;
+
+                }
                 now = this.loader.forward();
             }
             else {
@@ -128,12 +143,10 @@ class StateController extends JSONSerializer {
         /**
          * @type {StateResponse}
          */
-        const response = await now[headResponse.callback || "keep"](request, this._context);
-        this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
-        this._emitter.setState(response.state);
+        const response = await this._call(headResponse.callback || "keep", now, request)
         responses.push(response);
 
-        const _responses = await this._checkState(request, response, now);
+        const _responses = await this._checkForwordState(request, response, now);
         responses = responses.concat(_responses)
 
         return responses;
@@ -142,26 +155,19 @@ class StateController extends JSONSerializer {
      * 
      * @param {any} request
      * @param {StateResponse} response  
-     * @param {import('./plugin').PlugIns} now
+     * @param {PlugIns} now
      *  
      * @returns 
      */
-    async _checkState(request, response, now) {
+    async _checkForwordState(request, response, now) {
         let responses = [];
         const state = this._emitter.getState();
         if (state === 'out') {
-            if (now.out) {
-                const _responses = await this._emitter.run(request);
-                if (_responses) {
-                    responses = responses.concat(_responses);
-                }
-
-            }
-            this._emitter.setState("in");
-
+            const _responses = this._checkOut(now, request)
+            responses = responses.concat(_responses)
 
         }
-        if (state === "forwardToSub") {
+        else if (state === "forwardToSub") {
 
             const _responses = this._emitter.run(request, response.subid)
             if (_responses) {
@@ -173,6 +179,22 @@ class StateController extends JSONSerializer {
         }
 
         return responses
+    }
+    async _checkOut(request, now) {
+        let responses;
+        if (now.out) {
+            const _responses = await this._emitter.run(request);
+            if (_responses) {
+                responses = responses.concat(_responses);
+            }
+
+        }
+        if (this.isEnd() === false) {
+            this._emitter.setState("in");
+        }
+
+        return responses;
+
     }
     async out(request) {
         const responses = []
@@ -199,16 +221,15 @@ class StateController extends JSONSerializer {
     /**
      * 
      * @param {any} request 
-     * @param {import('./plugin').PlugIns} now 
+     * @param {PlugIns} now 
      * @returns 
      */
     async _inProcess(request, now) {
-        const response = now.in(request, this._context)
+        const response = await this._call("in", now, request)
         const responses = [];
-        this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
-        this._emitter.setState(response.state);
+
         responses.push(response)
-        const _responses = await this._checkState(request, response, now);
+        const _responses = await this._checkForwordState(request, response, now);
 
 
         return responses.concat(_responses)
@@ -218,10 +239,13 @@ class StateController extends JSONSerializer {
         const now = this.loader.getNow();
         this._context.loopOut();
         if (now.returnFromSub) {
-            const response = await now.returnFromSub(request);
-            this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
-            this._emitter.setState(response.state);
+
+
+            const response = await this._call('returnFromSub', now, request)
             responses.push(response);
+        }
+        else {
+            this._emitter.setState("out");
         }
         return responses;
 
@@ -235,6 +259,29 @@ class StateController extends JSONSerializer {
     }
     async cancel() {
 
+    }
+    /**
+     * 
+     * @param {state | string} funcname
+     * @param {PlugIns} plugins  
+     */
+    async _call(funcname, plugins, request, ...args) {
+        /**
+         * @type {StateResponse}
+         */
+        const response = await plugins[funcname].call(plugins, request, this._context, this, ...args) || {}
+        this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
+        this._emitter.setState(response.state || "out");
+        return response;
+
+    }
+    reset() {
+        this._emitter.setState("start")
+        this.loader.resetPosition()
+    }
+    isEnd() {
+
+        return this.loader.positionState.isEnd === true && this._emitter.getState() === "out";
     }
 }
 

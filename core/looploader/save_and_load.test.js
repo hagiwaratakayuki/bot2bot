@@ -31,7 +31,7 @@ describe('Save and Load', function () {
 
             }
         }
-        saver.builderRegistration(builderConfigMap);
+        saver.buildersRegistration(builderConfigMap);
         saver.addLoopStep('test', { loop: 1 })
         saver.addLoopStep('test', { loop: 2 })
         saver.startSubLoop('loop');
@@ -55,7 +55,7 @@ describe('Save and Load', function () {
 
         assert.deepEqual(newSaver.toJSON(), jsonData)
         const loader = new Loader()
-        loader.builderRegistration(builderConfigMap);
+        loader.buildersRegistration(builderConfigMap);
         loader.fromJSON(jsonData);
         let step = loader.forward();
         assert.equal(step.isEnd, false)

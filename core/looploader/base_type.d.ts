@@ -14,15 +14,15 @@ export type Document = Partial<{
     [k in keyof DocumentLoader]: string
 }>
 
-export type BulderConfig = {
+export type BuilderConfig = {
     builder: Builder
     options?: Object // Custamized default option
     mergeFunction?: Function // option merge function default is Object.assign
-    documentLoader: DocumentLoader
+    documentLoader?: DocumentLoader
 
 }
 
-export type BuilderConfigMap = { [name: string]: BulderConfig }
+export type BuilderConfigMap = { [name: string]: BuilderConfig }
 export type SubLoopType = "selection" | "loop"
 
 export type LoopStep = {
@@ -39,12 +39,13 @@ export type PositionState {
 }
 export type LoopStepPath = number[]
 
-
-
+export type DocumentPropertis = Array<keyof Document>
+export type SubLoopDocumentList = { subid: any, document: Document }[]
 export interface BasicLoader {
 
 
     positionState: PositionState
+    resetPosition(): void
     getLoopStepPath(): LoopStepPath
     setLoopStepPath(LoopStepPath: LoopStepPath): void
     forward(): PlugIns
@@ -54,6 +55,10 @@ export interface BasicLoader {
     forwardToSub(subid?: any): PlugIns
     getNow(): PlugIns
     buildStep(loopStep: LoopStep): PlugIns
+    getStartStep(): PlugIns[]
+    getSubLoopDocuments(language: string, filter?: DocumentPropertis): SubLoopDocumentList
+    getSubLoopDocument(subid: any, language: string, filter?: DocumentPropertis): Document
+
 
 
 
