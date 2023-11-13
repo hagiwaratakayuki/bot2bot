@@ -1,19 +1,23 @@
 const { Saver } = require("../../../core/looploader/save_and_load")
 const select = require("./select")
 const parroting = require("./parroting")
-const registers = [
+const createRegisters = [
     select.createrRegister,
     parroting.createrRegister
+]
+
+const executeRegisters = [
+    parroting.executeRegister
 ]
 /**
  * 
  * @param {import("../../../core/looploader/base_type").BasicLoader} loader 
  * @param {import("../../../core/looploader/save_and_load").Saver} saver 
  */
-function createrRouter(loader, saver) {
+function createRouter(loader, saver) {
     const routeSaver = new Saver();
 
-    for (const register of registers) {
+    for (const register of createRegisters) {
         register(saver);
         register(loader);
         register(routeSaver)
@@ -27,5 +31,14 @@ function createrRouter(loader, saver) {
     loader.fromJSON(routeSaver.toJSON());
 
 }
+/**
+ * 
+ * @param {import("../../../core/looploader/base_type").BasicLoader} loader 
+ */
+function executeRouter(loader) {
+    for (const register of executeRegisters) {
+        register(loader);
+    }
+}
 
-module.exports = { createRouter: createrRouter }
+module.exports = { createRouter, executeRouter }

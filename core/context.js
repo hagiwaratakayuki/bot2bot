@@ -8,10 +8,10 @@ class Context extends JSONSerializer {
      */
     constructor(history) {
         super();
-        this.globalData = {}
+        this._globalData = {}
 
-        this.loopDatas = []
-        this.datas = []
+        this._loopDatas = []
+        this._datas = []
         /**
          * @type {History}
          */
@@ -26,36 +26,47 @@ class Context extends JSONSerializer {
         const filter = ['data', 'loopData', 'history'];
         return this._toJSON(filter);
     }
-    fromJSON(jsonData) {
-        super.fromJSON(jsonData);
-        this._resumeLoop()
+
+
+    forwardToSub() {
+        this.setLoopData({})
+        this._subLoopData = null
+
+        this._datas.push({})
+    }
+    returnFromSub() {
+        this._subLoopData = this._loopDatas.pop()
+        this._datas.pop()
 
     }
 
-    loopIn() {
-        const loopData = {}
-        this.loopData = loopData;
-        this.loopDatas.push(loopData);
-        this.subLoopData = null
-        this.data = {};
-        this.datas.push(this.data)
-    }
-    loopOut() {
-        this.subLoopData = this.loopDatas.pop()
-        this.loopData = this.loopDatas[this.loopDatas.length - 1]
-        this.datas.pop()
-        this.data = this.datas[this.datas.length - 1]
 
+    moveLoop() {
+
+        this.setData({})
     }
-    _resumeLoop() {
-        this.loopData = this.loopDatas[this.loopDatas.length - 1]
-        this.data = this.datas[this.datas.length - 1]
+    getGlobalData() {
+        return this._globalData
+    }
+    setGlobalData(data) {
+        this._globalData = data;
+    }
+    getData() {
+        return this._datas[this._datas.length - 1]
+    }
+    setData(data) {
+        this._datas[this._datas.length - 1] = data
+    }
+    getLoopData() {
+        return this._loopDatas[this._loopDatas.length - 1]
+    }
+    setLoopData(data) {
+        this._loopDatas[this._loopDatas.length - 1] = data
+    }
+    getSubLoopData() {
+        return this._subLoopData
     }
 
-    moveLoop(data) {
-        this.data = {}
-        this.datas[this.datas.length - 1] = this.data
-    }
 
 }
 

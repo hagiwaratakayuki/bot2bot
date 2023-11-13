@@ -73,8 +73,8 @@ function executerBuilder(options) {
      */
     const res = {
         in: function () {
-            const message = readlineSync.question("say samething")
-            console.log("you said" + options.message)
+            const message = readlineSync.question("say samething: ")
+            console.log("you said " + message)
         }
     }
     return res

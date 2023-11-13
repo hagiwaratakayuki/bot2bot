@@ -1,6 +1,8 @@
+const path = require("node:path");
 const { Saver, Loader } = require("../../../core/looploader/save_and_load");
 const { Creater } = require("../../creater");
 const { createRouter } = require("../../plugin/cli");
+const fs = require("node:fs")
 const process = require("node:process")
 
 
@@ -20,6 +22,9 @@ async function create(jsonData) {
         await creater.run({})
 
     }
+    const data = JSON.stringify(saver.toJSON())
+    fs.writeFileSync(path.join(process.cwd(), 'bot2bot/exampledata/cli.json'), data)
+
 
 }
 

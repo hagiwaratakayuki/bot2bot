@@ -1,12 +1,26 @@
+const { Loader } = require("../../../core/looploader/save_and_load");
+const fs = require("node:fs");
+const path = require("node:path");
+const process = require("node:process");
+const { StateController } = require("../../../core/state_controller");
+const { executeRouter } = require("../../plugin/cli");
 function main() {
-    _main().then(function () {
+    execute().then(function () {
         exit();
     })
 }
 
-async function create() {
-    const controller = new Creater()
-    while (controller) {
+async function execute() {
+
+    const JSONData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'bot2bot/exampledata/cli.json'), { encoding: "utf-8" }))
+    const loader = new Loader(true);
+    executeRouter(loader);
+    loader.fromJSON(JSONData)
+    const controller = new StateController(loader)
+
+    while (controller.isEnd() === false) {
+        await controller.run({})
+
 
     }
 

@@ -126,6 +126,7 @@ class StateController extends JSONSerializer {
 
 
         }
+        this._context.moveLoop()
         const _responses = await this._inProcess(request, now);
         return responses.concat(_responses);
 
@@ -199,8 +200,11 @@ class StateController extends JSONSerializer {
     async out(request) {
         const responses = []
         const now = this.loader.getNow();
+
         const response = await now.out(request, this._context);
         responses.push(response);
+
+
         return responses;
     }
     async forwardToSub(request, subid) {
@@ -212,7 +216,7 @@ class StateController extends JSONSerializer {
 
         }
         const subloopStep = this.loader.forwardToSub(subid)
-        this._context.loopIn()
+        this._context.forwardToSub()
         const _responses = await this._inProcess(request, subloopStep);
         return responses.concat(_responses);
 
@@ -237,7 +241,7 @@ class StateController extends JSONSerializer {
     async returnFromSub(request) {
         const responses = []
         const now = this.loader.getNow();
-        this._context.loopOut();
+        this._context.returnFromSub();
         if (now.returnFromSub) {
 
 
