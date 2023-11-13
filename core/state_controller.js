@@ -170,7 +170,7 @@ class StateController extends JSONSerializer {
         }
         else if (state === "forwardToSub") {
 
-            const _responses = this._emitter.run(request, response.subid)
+            const _responses = this._emitter.run(request, response.subid, response.subLoopInit)
             if (_responses) {
                 responses = responses.concat(_responses);
             }
@@ -207,16 +207,22 @@ class StateController extends JSONSerializer {
 
         return responses;
     }
-    async forwardToSub(request, subid) {
+    async forwardToSub(request, subid, subLoopInit) {
         const now = this.loader.getNow()
         const responses = []
+        let _subLoopInit = subLoopInit || {}
         if (now.forwardToSub) {
+            /**
+             * @type {StateResponse}
+             */
             const _response = await now.forwardToSub(request, subid);
             responses.push(_response)
+            subLoopInit = Object.assign({}, _subLoopInit, _response.subLoopInit)
 
         }
+
         const subloopStep = this.loader.forwardToSub(subid)
-        this._context.forwardToSub()
+        this._context.forwardToSub(_subLoopInit)
         const _responses = await this._inProcess(request, subloopStep);
         return responses.concat(_responses);
 

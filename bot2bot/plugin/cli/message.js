@@ -36,7 +36,10 @@ function createrRegister(saver) {
 function createrBuilder(request) {
     return {
         in: function () {
-            const message = readlineSync.question('please input message')
+            const message = readlineSync.question('please input message: ')
+            while (!message) {
+                readlineSync.question('please input message: ')
+            }
             /**
              * @type {MessageOption}
              */

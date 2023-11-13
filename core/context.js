@@ -10,7 +10,7 @@ class Context extends JSONSerializer {
         super();
         this._globalData = {}
 
-        this._loopDatas = []
+        this._loopDatas = [{}]
         this._datas = []
         /**
          * @type {History}
@@ -27,9 +27,12 @@ class Context extends JSONSerializer {
         return this._toJSON(filter);
     }
 
-
-    forwardToSub() {
-        this.setLoopData({})
+    /**
+     * 
+     * @param {any} data 
+     */
+    forwardToSub(data = {}) {
+        this._loopDatas.push(datas)
         this._subLoopData = null
 
         this._datas.push({})
@@ -45,6 +48,7 @@ class Context extends JSONSerializer {
 
         this.setData({})
     }
+
     getGlobalData() {
         return this._globalData
     }
@@ -65,6 +69,12 @@ class Context extends JSONSerializer {
     }
     getSubLoopData() {
         return this._subLoopData
+    }
+    setUpperStepData(data) {
+        return this._datas[this._datas.length - 2] = data
+    }
+    getUpperStepData() {
+        return this._datas[this._datas.length - 2]
     }
 
 

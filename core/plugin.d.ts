@@ -8,9 +8,10 @@ export type PlugIns = Partial<{
     in: Function
 }
 
-export type StateResponse<T> = {
+export type StateResponse = {
     state?: state
     subid?: number
-    callback?: keyof T //Funcname Use when state is keep. Default is "keep"
+    callback?: string //Funcname Use when state is keep. Default is "keep"
+    subLoopInit?: any
 }
 
