@@ -36,12 +36,14 @@ class Brige extends JSONSerializer {
        */
         this._stepCountMap = {}
 
+
     }
     resetPosition() {
         /**
         * @type {number[]}
         */
         this.loopStepPath = [-1];
+        this.loopStepKeyPath = ['']
     }
     getLoopStepPath() {
         return [].concat(this.loopStepPath)
@@ -67,8 +69,9 @@ class Brige extends JSONSerializer {
     /**
      * 
      * @param {number[]?} loopStepPath
+     * @param {string[]?} loopStepKeyPath
      */
-    _getLoopStepPathString(loopStepPath) {
+    _getLoopStepPathString(loopStepPath, loopStepKeyPath) {
         return (loopStepPath || this.loopStepPath).join("_")
     }
     /**
@@ -143,15 +146,18 @@ class Saver extends Brige {
     /**
      * 
      * @param {import('./base_type').SubLoopType?} subLoopType
+     * @param {string?} subLoopKey
      */
-    startSubLoop(subLoopType) {
+    startSubLoop(subLoopType, subLoopKey) {
         const parentLoopStepPath = this._getLoopStepPathString();
         this.loopStepMap[parentLoopStepPath].subLoopType = subLoopType;
         this.loopStepPath.push(-1)
+        this.loopStepKeyPath.push(subLoopKey || '')
     }
 
     endSubLoop() {
         this.loopStepPath.pop()
+        this.loopStepKeyPath.pop()
     }
 
     _defaultMerge(basicOptions, options) {
@@ -232,6 +238,7 @@ class Loader extends Brige {
         }
         else {
             this.loopStepPath.pop()
+            this.loopStepKeyPath.pop()
         }
         if (this.loopStepPath.length === 1) {
 
@@ -265,7 +272,8 @@ class Loader extends Brige {
             }
         }
         if (isSubLoopOut === true) {
-            this.loopStepPath.pop()
+            this.loopStepPath.pop();
+            this.loopStepKeyPath.pop();
 
         }
         this.positionState = { isEnd: false, isSubLoopOut }
@@ -295,15 +303,17 @@ class Loader extends Brige {
     }
     /**
      * 
-     * @param {number?} subLoopNumber 
+     * @param {number?} subLoopNumber
+     * @param {string?} subLoopKey
      */
-    forwardToSub(subLoopNumber) {
+    forwardToSub(subLoopNumber, subLoopKey) {
         if (!subLoopNumber) {
             this.loopStepPath.push(0) // go to fix position
         }
         else {
             this.loopStepPath.push(subLoopNumber);
         }
+        this.loopStepKeyPath.push(subLoopKey)
         this.positionState.isEnd = false;
         this.positionState.isSubLoopOut = false
         return this.getNow()
