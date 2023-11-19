@@ -322,7 +322,7 @@ class Loader extends Brige {
     }
     /**
      * 
-     * @returns {import('../plugin').PlugIns}
+     * @returns {import('../plugin').PlugIn}
      */
     getNow() {
         const loopStepPath = this._getLoopStepPathString();

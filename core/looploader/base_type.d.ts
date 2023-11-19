@@ -1,4 +1,4 @@
-import { Builder, PlugIns } from "../plugin";
+import { Builder, PlugIn } from "../plugin";
 
 
 
@@ -48,14 +48,14 @@ export interface BasicLoader {
     resetPosition(): void
     getLoopStepPath(): LoopStepPath
     setLoopStepPath(LoopStepPath: LoopStepPath): void
-    forward(): PlugIns
-    back(): PlugIns
-    backAll(): PlugIns
+    forward(): PlugIn
+    back(): PlugIn
+    backAll(): PlugIn
 
-    forwardToSub(subid?: any): PlugIns
-    getNow(): PlugIns
-    buildStep(loopStep: LoopStep): PlugIns
-    getStartStep(): PlugIns[]
+    forwardToSub(subid?: any): PlugIn
+    getNow(): PlugIn
+    buildStep(loopStep: LoopStep): PlugIn
+    getStartStep(): PlugIn[]
     getSubLoopDocuments(language: string, filter?: DocumentPropertis): SubLoopDocumentList
     getSubLoopDocument(subid: any, language: string, filter?: DocumentPropertis): Document
 

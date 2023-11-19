@@ -2,7 +2,7 @@ import { state } from "./state_emitter";
 
 
 
-export type PlugIns = Partial<{
+export type PlugIn = Partial<{
     [k in state]: Function
 }> & {
     in: Function

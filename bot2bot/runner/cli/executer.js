@@ -3,7 +3,24 @@ const fs = require("node:fs");
 const path = require("node:path");
 const process = require("node:process");
 const { StateController } = require("../../../core/state_controller");
-const { executeRouter } = require("../../plugin/cli");
+const parroting = require("../../plugin/parroting")
+const message = require("../../plugin/message");
+
+const executeRegisters = [
+    parroting.executeRegister,
+    message.executeRegister
+]
+
+/**
+ * 
+ * @param {import("../../../core/looploader/base_type").BasicLoader} loader 
+ */
+function executeRouter(loader) {
+    for (const register of executeRegisters) {
+        register(loader);
+    }
+}
+
 function main() {
     execute().then(function () {
         process.exit();

@@ -7,7 +7,7 @@ const { JSONSerializer } = require('./json_serializer');
 
 /**
  * @typedef {import("./state_emitter").state} state
- * @typedef {import("./plugin").PlugIns} PlugIns
+ * @typedef {import("./plugin").PlugIn} PlugIns
  */
 /** 
  * @type {Array<state>}

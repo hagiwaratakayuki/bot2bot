@@ -24,6 +24,9 @@ class Creater extends JSONSerializer {
         }
         return this.controller.run(request, jsonData);
     }
+    isEnd() {
+        return this.controller.isEnd();
+    }
 
 }
 
