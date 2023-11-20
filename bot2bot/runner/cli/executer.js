@@ -3,23 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const process = require("node:process");
 const { StateController } = require("../../../core/state_controller");
-const parroting = require("../../plugin/parroting")
-const message = require("../../plugin/message");
+const { executeRouter } = require("../router/executer");
 
-const executeRegisters = [
-    parroting.executeRegister,
-    message.executeRegister
-]
-
-/**
- * 
- * @param {import("../../../core/looploader/base_type").BasicLoader} loader 
- */
-function executeRouter(loader) {
-    for (const register of executeRegisters) {
-        register(loader);
-    }
-}
 
 function main() {
     execute().then(function () {
@@ -31,7 +16,7 @@ async function execute() {
 
     const JSONData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'bot2bot/exampledata/cli.json'), { encoding: "utf-8" }))
     const loader = new Loader(true);
-    executeRouter(loader);
+    executeRouterr(loader);
     loader.fromJSON(JSONData)
     const controller = new StateController(loader)
 
