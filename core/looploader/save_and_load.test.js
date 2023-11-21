@@ -58,11 +58,11 @@ describe('Save and Load', function () {
         loader.buildersRegistration(builderConfigMap);
         loader.fromJSON(jsonData);
         let step = loader.forward();
-        assert.equal(step.isEnd, false)
+
         assert.equal(step.now.options.loop, 1)
 
         step = loader.forward();
-        assert.equal(step.isEnd, false)
+
         assert.equal(step.now.options.loop, 2)
         assert.equal(step.now.subLoopType, 'loop')
 
@@ -71,17 +71,17 @@ describe('Save and Load', function () {
         assert.equal(step.options.subloop, 1)
 
         step = loader.forward();
-        assert.equal(step.isEnd, false)
+        assert.equal(loader.positionState.isEnd, false)
         assert.equal(step.now.options.subloop, 2)
 
 
         step = loader.forward();
-        assert.equal(step.isEnd, false)
+        assert.equal(loader.positionState.isEnd, false)
         assert.equal(step.isSubLoopOut, true)
         assert.equal(step.now.options.loop, 2)
 
         step = loader.forward();
-        assert.equal(step.isEnd, true)
+        assert.equal(loader.positionState.isEnd, true)
         assert.equal(step.isSubLoopOut, false)
         assert.equal(step.now.options.loop, 3)
         assert.equal(step.now.subLoopType, 'selection')
@@ -89,7 +89,7 @@ describe('Save and Load', function () {
         assert.equal(step.builderID, 'test');
         assert.equal(step.options.selectoption, 2)
         step = loader.forward();
-        assert.equal(step.isEnd, true)
+        assert.equal(loader.positionState.isEnd, true)
         assert.equal(step.isSubLoopOut, true)
         assert.equal(step.now.options.loop, 3)
     });

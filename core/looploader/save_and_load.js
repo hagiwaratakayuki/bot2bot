@@ -6,10 +6,10 @@ const { JSONSerializer } = require('../json_serializer')
  * @typedef {import('./base_type').DocumentPropertis} DocumentPropertis
  * @typedef {import('./base_type').Document} Document
  * @typedef {import('./base_type').SubLoopDocumentList} SubLoopDocumentList
+ * @typedef {import('./base_type').SubLoopType} SubLoopType
+*/
 
- */
-
-const TOPKEY = '';
+const PATH_DElIMITER = '/';
 
 class Brige extends JSONSerializer {
 
@@ -30,12 +30,30 @@ class Brige extends JSONSerializer {
          * @type {{[loopStepPath: string]: import('./base_type').LoopStep}}
          */
         this.loopStepMap = {}
-
         /**
-       * @type {{[key:string]: number}}
-       */
-        this._stepCountMap = {}
+         * @type {{[loopKey: string]: SubLoopType}}
+        */
+        this.subLoopTypeMap = {}
 
+
+
+
+    }
+    /**
+     * 
+     * @param {string?} loopKey 
+     */
+    _getSubLoopType(loopKey) {
+        return this.subLoopTypeMap[loopKey || this._getLoopKey()]
+
+    }
+    /**
+     * 
+     * @param {SubLoopType} subLoopType 
+     * @param {string?} loopKey 
+     */
+    _setSubLoopType(subLoopType, loopKey) {
+        return this.subLoopTypeMap[loopKey || this._getLoopKey()] = subLoopType
 
     }
     resetPosition() {
@@ -46,7 +64,7 @@ class Brige extends JSONSerializer {
         this.loopStepKeyPath = ['']
     }
     getLoopStepPath() {
-        return [].concat(this.loopStepPath)
+        return [[].concat(this.loopStepPath), [].concat(this.loopStepKeyPath)]
     }
     /**
     * 
@@ -72,25 +90,43 @@ class Brige extends JSONSerializer {
      * @param {string[]?} loopStepKeyPath
      */
     _getLoopStepPathString(loopStepPath, loopStepKeyPath) {
-        return (loopStepPath || this.loopStepPath).join("_")
+        const _loopStepPath = loopStepPath || this.loopStepPath
+        const _loopStepKeyPath = loopStepKeyPath || this.loopStepKeyPath
+        const zipLimit = Math.min(_loopStepPath.length, _loopStepKeyPath.length);
+        let index = 0;
+        let keys = []
+        while (index < zipLimit) {
+            keys.push(_loopStepKeyPath[index])
+            keys.push(_loopStepPath[index]);
+            index++;
+
+        }
+        while (index < loopStepKeyPath.length) {
+            keys.push(_loopStepKeyPath[index]);
+            index++
+        }
+        while (index < loopStepPath.length) {
+            keys.push(_loopStepPath[index]);
+            index++
+        }
+
+        return keys.join(PATH_DElIMITER);
     }
     /**
      * 
      * @param {string} stepPathString 
      */
     _parseLoopStepPath(stepPathString) {
-        return stepPathString.split("_").map(parseInt)
+        return stepPathString.split(PATH_DElIMITER).map(parseInt)
 
     }
-    _getParentStatePath() {
-        return this._getLoopStepPathString(this.loopStepPath.slice(0, -1))
+    _getUpperLoopPath() {
+        return this._getLoopStepPathString(this.loopStepPath.slice(0, -1), this.loopStepKeyPath.slice(0, -1))
     }
-    _getStepCountKey() {
-        if (this.loopStepPath.length === 1) {
-            return TOPKEY;
-        }
+    _getLoopKey() {
 
-        return this._getParentStatePath();
+
+        return this._getLoopStepPathString(this.loopStepPath.slice(0, -1), this.loopStepKeyPath.s);
 
     }
 
@@ -125,10 +161,11 @@ class Saver extends Brige {
 
         const loopStepPath = this._getLoopStepPathString();
 
-        this.loopStepMap[loopStepPath] = { builderID, options: _options }
-        const key = this._getStepCountKey();
-        this._stepCountMap[key] = (this._stepCountMap[key] || 0) + 1;
-
+        this.loopStepMap[loopStepPath] = { builderID, options: _options, subLoops: {} }
+        const upperStatePath = this._getUpperLoopPath();
+        const subLoopKey = this.loopStepKeyPath[this.loopStepKeyPath.length - 1];
+        const subLoopData = this.loopStepMap[upperStatePath].subLoops[subLoopKey]
+        subLoopData.count = (subLoopData.count || 0) + 1;
 
 
     }
@@ -148,11 +185,11 @@ class Saver extends Brige {
      * @param {import('./base_type').SubLoopType?} subLoopType
      * @param {string?} subLoopKey
      */
-    startSubLoop(subLoopType, subLoopKey) {
-        const parentLoopStepPath = this._getLoopStepPathString();
-        this.loopStepMap[parentLoopStepPath].subLoopType = subLoopType;
+    startSubLoop(subLoopType, subLoopKey = '') {
+
         this.loopStepPath.push(-1)
-        this.loopStepKeyPath.push(subLoopKey || '')
+        this.loopStepKeyPath.push(subLoopKey)
+        this._setSubLoopType(subLoopType)
     }
 
     endSubLoop() {
@@ -170,13 +207,15 @@ class Saver extends Brige {
 
 }
 /**
- * @implements {import('./base').BasicLoader}
+ * @implements {import('./base_type.d.ts').BasicLoader}
  */
 class Loader extends Brige {
-    constructor(isFirst = false) {
+    constructor(isFirst = false, language = '', i18n = {}) {
         super();
         this._isFirst = isFirst
         this.positionState = { isEnd: false, isSubLoopOut: false };
+        this._language = language
+        this._i18n = i18n
     }
     fromJSON(jsonData) {
 
@@ -190,9 +229,10 @@ class Loader extends Brige {
         /**
          * @type {Array<keyof Loader>}
          */
-        const filters = ['_cache', '_cacheKey', '_isFirst'];
+        const filters = ['_cache', '_cacheKey', '_isFirst', '_i18n', '_language'];
         return super._toJSON(filters);
     }
+
 
     forward() {
 
@@ -208,21 +248,24 @@ class Loader extends Brige {
          * @type {boolean}
          */
         let isSubLoopOut = false;
-        const parentLoopStepPath = this._getStepCountKey();
+
+        const upperLoopPath = this._getUpperLoopPath()
+        const upperLoop = this.loopStepMap[upperLoopPath]
+
 
         if (this.loopStepPath.length !== 1) {
 
-            const parentLoopStep = this.loopStepMap[parentLoopStepPath]
-            if (parentLoopStep.subLoopType === 'selection') {
+            const loopState = upperLoop.subLoops[this.loopStepKeyPath[this.loopStepKeyPath - 1]]
+            if (loopState.type === 'selection') {
 
                 isSubLoopOut = true;
 
             }
-            if (parentLoopStep.subLoopType === 'loop') {
+            if (loopState.type === 'loop') {
 
 
 
-                isSubLoopOut = this._stepCountMap[parentLoopStepPath] <= step;
+                isSubLoopOut = loopState.count <= step;
 
 
             }
@@ -242,7 +285,7 @@ class Loader extends Brige {
         }
         if (this.loopStepPath.length === 1) {
 
-            isEnd = this._stepCountMap[this._getStepCountKey()] - 1 === this.loopStepPath[0];
+            isEnd = this === this.loopStepPath[0];
 
         }
 
@@ -255,7 +298,7 @@ class Loader extends Brige {
         let isSubLoopOut = false;
         if (this.loopStepPath.length !== 1) {
 
-            const parentloopStepPath = this._getParentStatePath();
+            const parentloopStepPath = this._getUpperLoopPath();
             const parentLoopStep = this.loopStepMap[parentloopStepPath];
 
             if (parentLoopStep.subLoopType === 'selection') {
@@ -306,7 +349,7 @@ class Loader extends Brige {
      * @param {number?} subLoopNumber
      * @param {string?} subLoopKey
      */
-    forwardToSub(subLoopNumber, subLoopKey) {
+    forwardToSub(subLoopNumber, subLoopKey = '') {
         if (!subLoopNumber) {
             this.loopStepPath.push(0) // go to fix position
         }
@@ -349,7 +392,7 @@ class Loader extends Brige {
      */
     buildStep(loopStep) {
         const builderConfig = this.builderConfigMap[loopStep.builderID];
-        return builderConfig.builder(loopStep.options)
+        return builderConfig.builder(loopStep.options, this._language, this._i18n)
     }
     /**
     * 

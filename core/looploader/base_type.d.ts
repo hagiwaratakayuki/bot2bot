@@ -2,11 +2,23 @@ import { Builder, PlugIn } from "../plugin";
 
 
 
-export type i18nFunc = (language: string, options: any) => string
+export type i18nFunc<T = string> = (language: string, options: any) => T
+
+export type Schema = {
+    uri: string,
+    descriptions: any // recursive dictionaly like {a:{b:{c:"that"}}}
+    definitions: any// recursive dictionaly like {a:{b:{c:"that"}}}
+}
+
+export type SchemaMap = {
+    loopData: Schema
+}
 
 export type DocumentLoader {
     title: i18nFunc
     description: i18nFunc
+    schema?: i18nFunc<SchemaMap>
+
 
 }
 
@@ -28,7 +40,13 @@ export type SubLoopType = "selection" | "loop"
 export type LoopStep = {
     builderID: string
     options: Object
-    subLoopType?: SubLoopType
+    subLoops: {
+        [key: string]: {
+            type: SubLoopType
+            steps: LoopStep[]
+
+        }
+    }
 
 
 }
