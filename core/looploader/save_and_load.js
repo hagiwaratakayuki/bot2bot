@@ -53,6 +53,9 @@ class Brige extends JSONSerializer {
         * @type {number[]}
         */
         this.loopStepPath = [-1];
+        /**
+         * @type {string[]}
+         */
         this.loopStepKeyPath = ['']
     }
     getLoopStepPath() {
@@ -201,7 +204,10 @@ class Loader extends Brige {
     constructor(isFirst = false, language = '', i18n = {}) {
         super();
         this._isFirst = isFirst
-        this.positionState = { isEnd: false, isSubLoopOut: false };
+        /**
+         * @type {import('./base_type').PositionState}
+         */
+        this.positionState = { isEnd: false, isSubLoopEnd: false };
         this._language = language
         this._i18n = i18n
     }
@@ -212,6 +218,10 @@ class Loader extends Brige {
             this.resetPosition();
         }
 
+    }
+    resetPosition() {
+        super.resetPosition();
+        this.positionState = { isEnd: false, isSubLoopEnd: false }
     }
     toJSON() {
         /**
@@ -225,8 +235,7 @@ class Loader extends Brige {
     forward() {
 
 
-        const tailIndex = this.loopStepPath.length - 1;
-        const step = this.loopStepPath[tailIndex] + 1;
+
 
         /**
          * @type {boolean}
@@ -235,36 +244,35 @@ class Loader extends Brige {
         /**
          * @type {boolean}
          */
-        let isSubLoopOut = false;
+        let isSubLoopEnd = false;
 
         const upperLoop = this._getUpperLoopStep()
 
 
 
-        if (this.loopStepPath.length !== 1) {
 
-            const subLoopState = upperLoop.s[this.loopStepKeyPath[this.loopStepKeyPath - 1]]
-            const subLoopStepType = getSubLoopType(subLoopState.t)
-            if (subLoopStepType === 'selection') {
+        if (this.positionState.isSubLoopEnd === false) {
+            const tailIndex = this.loopStepPath.length - 1;
+            const step = this.loopStepPath[tailIndex] + 1;
 
-                isSubLoopOut = true;
-
-            }
-            if (subLoopStepType === 'loop') {
-
-
-
-                isSubLoopOut = subLoopState.stp.length <= step;
-
-
-            }
-
-
-
-        }
-
-        if (isSubLoopOut === false) {
             this.loopStepPath[tailIndex] = step
+            if (this.loopStepPath.length !== 1) {
+
+                const subLoopState = upperLoop.s[this.loopStepKeyPath[this.loopStepKeyPath - 1]]
+                const subLoopStepType = getSubLoopType(subLoopState.t)
+
+                if (subLoopStepType === 'loop') {
+
+
+
+                    isSubLoopEnd = subLoopState.stp.length <= step - 1;
+
+
+                }
+
+
+
+            }
 
 
         }
@@ -278,7 +286,7 @@ class Loader extends Brige {
 
         }
 
-        this.positionState = { isEnd, isSubLoopOut }
+        this.positionState = { isEnd, isSubLoopEnd }
         return this.getNow();
     }
     back() {
@@ -339,15 +347,24 @@ class Loader extends Brige {
      * @param {string?} subLoopKey
      */
     forwardToSub(subLoopNumber, subLoopKey = '') {
+        const nowLoop = this._getLoopStep()
+
+        const subLoopState = nowLoop.s[subLoopKey]
+        const subLoopType = getSubLoopType(subLoopState.t)
+
         if (!subLoopNumber) {
             this.loopStepPath.push(0) // go to fix position
         }
         else {
             this.loopStepPath.push(subLoopNumber);
+
         }
+
+
+
         this.loopStepKeyPath.push(subLoopKey)
         this.positionState.isEnd = false;
-        this.positionState.isSubLoopOut = false
+        this.positionState.isSubLoopEnd = subLoopType === "selection" || subLoopState.stp.length === 1;
         return this.getNow()
 
 

@@ -55,7 +55,7 @@ export type LoopStep = {
 
 export type PositionState {
     isEnd: boolean
-    isSubLoopOut: boolean
+    isSubLoopEnd: boolean
 }
 export type LoopStepPath = number[]
 

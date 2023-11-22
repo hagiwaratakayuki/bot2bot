@@ -2,7 +2,7 @@ const { History } = require('./history')
 const { StateEmitter } = require('./state_emitter')
 const { Context } = require('./context');
 const { JSONSerializer } = require('./json_serializer');
-
+const merge = require('deepmerge')
 
 
 /**
@@ -105,27 +105,7 @@ class StateController extends JSONSerializer {
     async in(request) {
         let responses = [];
         let now = this.loader.forward();
-        while (this.loader.positionState.isSubLoopOut === true) {
 
-            const _responses = await this._emitter.emit("returnFromSub", request);
-            responses = responses.concat(_responses);
-            if (this._emitter.getState() === "out") {
-                const _responses = await this._checkOut(request, now);
-                responses = responses.concat(_responses);
-                if (this.isEnd() === true) {
-                    return responses;
-
-                }
-                now = this.loader.forward();
-            }
-            else {
-                const _responses = await this._emitter.run(request)
-                responses.concat(_responses);
-                return responses;
-            }
-
-
-        }
         this._context.moveLoop()
         const _responses = await this._inProcess(request, now);
         return responses.concat(_responses);
@@ -147,7 +127,7 @@ class StateController extends JSONSerializer {
         const response = await this._call(headResponse.callback || "keep", now, request)
         responses.push(response);
 
-        const _responses = await this._checkForwordState(request, response, now);
+        const _responses = await this._checkForwordState(request, response);
         responses = responses.concat(_responses)
 
         return responses;
@@ -164,7 +144,7 @@ class StateController extends JSONSerializer {
         let responses = [];
         const state = this._emitter.getState();
         if (state === 'out') {
-            const _responses = this._checkOut(now, request)
+            const _responses = this._emitter.run(request)
             responses = responses.concat(_responses)
 
         }
@@ -183,14 +163,14 @@ class StateController extends JSONSerializer {
     }
     async _checkOut(request, now) {
         let responses;
-        if (now.out) {
-            const _responses = await this._emitter.run(request);
-            if (_responses) {
-                responses = responses.concat(_responses);
-            }
 
+        const _responses = await this._emitter.run(request);
+        if (_responses) {
+            responses = responses.concat(_responses);
         }
-        if (this.isEnd() === false) {
+
+
+        if (this.isEnd() === false && this._emitter.getState() === "out") {
             this._emitter.setState("in");
         }
 
@@ -200,11 +180,25 @@ class StateController extends JSONSerializer {
     async out(request) {
         const responses = []
         const now = this.loader.getNow();
+        if (now.out) {
+            const response = await now.out(request, this._context);
+            responses.push(response);
+        }
 
-        const response = await now.out(request, this._context);
-        responses.push(response);
 
 
+        while (this.loader.positionState.isSubLoopEnd === true && this._emitter.getState() === 'out') {
+            this.loader.forward()
+            const _responses = await this._emitter.emit("returnFromSub", request);
+            responses = responses.concat(_responses);
+            if (this.isEnd() === true) {
+                return responses;
+            }
+
+
+
+        }
+        this._emitter.setState("in")
         return responses;
     }
     async forwardToSub(request, subid, subLoopInit) {
@@ -239,7 +233,7 @@ class StateController extends JSONSerializer {
         const responses = [];
 
         responses.push(response)
-        const _responses = await this._checkForwordState(request, response, now);
+        const _responses = await this._checkForwordState(request, response);
 
 
         return responses.concat(_responses)
@@ -251,11 +245,8 @@ class StateController extends JSONSerializer {
         if (now.returnFromSub) {
 
 
-            const response = await this._call('returnFromSub', now, request)
+            const response = await this._call('returnFromSub', now, request,)
             responses.push(response);
-        }
-        else {
-            this._emitter.setState("out");
         }
         return responses;
 
@@ -276,11 +267,13 @@ class StateController extends JSONSerializer {
      * @param {PlugIns} plugins  
      */
     async _call(funcname, plugins, request, ...args) {
+
+        const context = merge({}, this._context.toJSON())
         /**
          * @type {StateResponse}
          */
         const response = await plugins[funcname].call(plugins, request, this._context, this, ...args) || {}
-        this._history.push({ request, response, loopStepPath: this.loader.getLoopStepPath() })
+        this._history.push({ request, response, context, loopStepPath: this.loader.getLoopStepPath(), state: this._emitter.getState() })
         this._emitter.setState(response.state || "out");
         return response;
 
