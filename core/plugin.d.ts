@@ -8,7 +8,7 @@ export type PlugIn = Partial<{
 }
 
 
-export type Builder = (options: any, language: string, i18n?: any) => PlugIn
+export type Builder = (options: any, language?: string, i18n?: any) => PlugIn
 
 export type StateResponse = {
     state?: state

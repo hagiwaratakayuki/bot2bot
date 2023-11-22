@@ -6,7 +6,11 @@ describe('Save and Load', function () {
 
     it('Basic Flow', function () {
         let mockBulderArgs;
-        function mockBulder(...args) {
+        /**
+         * 
+         * @type {import('../plugin').Builder}
+         */
+        function mockBulder(options, language, i18n) {
             mockBulderArgs = args;
 
         }

@@ -36,20 +36,22 @@ export type BuilderConfig = {
 
 export type BuilderConfigMap = { [builderID: string]: BuilderConfig }
 export type SubLoopType = "selection" | "loop"
+export type LoopState<T> = {
+    t: string
+    stp: T[]
 
+}
 export type LoopStep = {
     bID: string
     o: Object
     s: {
-        [key: string]: {
-            t: string
-            stp: LoopStep[]
-
-        }
+        [key: string]: LoopState<LoopStep>
     }
 
 
 }
+
+
 
 export type PositionState {
     isEnd: boolean
