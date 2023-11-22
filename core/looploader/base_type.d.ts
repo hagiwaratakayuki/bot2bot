@@ -34,16 +34,16 @@ export type BuilderConfig = {
 
 }
 
-export type BuilderConfigMap = { [name: string]: BuilderConfig }
+export type BuilderConfigMap = { [builderID: string]: BuilderConfig }
 export type SubLoopType = "selection" | "loop"
 
 export type LoopStep = {
-    builderID: string
-    options: Object
-    subLoops: {
+    bID: string
+    o: Object
+    s: {
         [key: string]: {
-            type: SubLoopType
-            steps: LoopStep[]
+            t: string
+            stp: LoopStep[]
 
         }
     }

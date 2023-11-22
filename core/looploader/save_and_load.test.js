@@ -54,10 +54,11 @@ describe('Save and Load', function () {
         newSaver.fromJSON(jsonData);
 
         assert.deepEqual(newSaver.toJSON(), jsonData)
-        const loader = new Loader()
+        const loader = new Loader(true)
         loader.buildersRegistration(builderConfigMap);
         loader.fromJSON(jsonData);
         let step = loader.forward();
+
 
         assert.equal(step.now.options.loop, 1)
 
