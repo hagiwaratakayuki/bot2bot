@@ -20,6 +20,10 @@ describe('Executer', function () {
         let callBackName;
         /**
          * 
+         */
+        let builderArgs = { options: null, language: null, i18n: null };
+        /**
+         * 
          * @param {MockArg} args 
          * @returns 
          */
@@ -39,11 +43,16 @@ describe('Executer', function () {
             }
             return response
         }
-
-        function mockBulder(...args) {
-            mockBulderArgs = args;
-            const isKeep = args[0].isKeep
-            const callback = args[0].callback
+        let isReturnFromSubCalled = false
+        /**
+         * 
+         * @type  {import('./plugin').Builder}  
+         * 
+         */
+        function mockBulder(options, language, i18n) {
+            mockBulderArgs = { options, language, i18n };
+            const isKeep = options.isKeep
+            const callback = options.callback
 
             return {
                 in: function (...args) {
@@ -56,24 +65,33 @@ describe('Executer', function () {
                         ret.state = "keep"
                         ret.callback = callback
                     }
+                    builderArgs = { options, language, i18n }
                     return ret;
 
 
                 },
                 out: function (...args) {
                     outArgs = args;
+                    builderArgs = { options, language, i18n }
                     return { mode: "out" };
                 },
                 keep: function (...args) {
                     callBackName = "keep"
+                    builderArgs = { options, language, i18n }
                     return keepfunc(args)
 
                 },
                 keepTest: function (...args) {
-                    callBackName = "keep"
+                    callBackName = "keepTest"
+                    builderArgs = { options, language, i18n }
                     return keepfunc(args)
 
                 },
+                returnFromSub: function (...args) {
+                    isReturnFromSubCalled = true
+                    builderArgs = { options, language, i18n }
+                    return {}
+                }
 
 
             }
@@ -102,7 +120,7 @@ describe('Executer', function () {
 
             }
         }
-        saver.builderRegistration(builderConfigMap);
+        saver.buildersRegistration(builderConfigMap);
         saver.addLoopStep('test', { loop: 1 })
         saver.addLoopStep('test', { loop: 2, isKeep: true })
         saver.startSubLoop('loop');
@@ -123,7 +141,7 @@ describe('Executer', function () {
         let jsonData = saver.toJSON()
 
         let loader = new Loader(true)
-        loader.builderRegistration(builderConfigMap);
+        loader.buildersRegistration(builderConfigMap);
 
 
 
@@ -136,13 +154,14 @@ describe('Executer', function () {
 
         jsonData = controlller.toJSON()
 
-        loader = new Loader()
-        loader.builderRegistration(builderConfigMap);
+        loader = new Loader(true)
+        loader.buildersRegistration(builderConfigMap);
         controlller = new StateController(loader);
 
         res = await controlller.run({}, jsonData);
-        res = await controlller.run({ isForwardToSub: true });
-        res = await controlller.run({});
+        res = await controlller.run({});//keep here
+        res = await controlller.run({ isForwardToSub: true }); // forward to sub
+        res = await controlller.run({}); //step sub 
         res = await controlller.run({});
         /**
          * @type {SubloopRequest}

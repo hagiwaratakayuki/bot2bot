@@ -16,6 +16,7 @@ class Context extends JSONSerializer {
          * @type {History}
          */
         this.history = history
+        this.subKey = null
 
     }
     toJSON() {
@@ -23,8 +24,12 @@ class Context extends JSONSerializer {
          * @type {Array<keyof Context>} 
          * 
          */
-        const filter = ['data', 'loopData', 'history'];
+        const filter = ['data', 'loopData', 'history', 'subKey'];
         return this._toJSON(filter);
+    }
+    fromJSON(jsonData) {
+        super.fromJSON(jsonData);
+        this.data = this.da
     }
 
     /**
@@ -47,6 +52,7 @@ class Context extends JSONSerializer {
     moveLoop() {
 
         this.setData({})
+        this._subLoopData = null
     }
 
     getGlobalData() {

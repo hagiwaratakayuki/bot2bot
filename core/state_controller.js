@@ -144,13 +144,13 @@ class StateController extends JSONSerializer {
         let responses = [];
         const state = this._emitter.getState();
         if (state === 'out') {
-            const _responses = this._emitter.run(request)
+            const _responses = await this._emitter.run(request)
             responses = responses.concat(_responses)
 
         }
         else if (state === "forwardToSub") {
 
-            const _responses = this._emitter.run(request, response.subid, response.subLoopInit)
+            const _responses = await this._emitter.run(request, response.subid, response.subkey, response.subLoopInit)
             if (_responses) {
                 responses = responses.concat(_responses);
             }
@@ -161,47 +161,43 @@ class StateController extends JSONSerializer {
 
         return responses
     }
-    async _checkOut(request, now) {
-        let responses;
 
-        const _responses = await this._emitter.run(request);
-        if (_responses) {
-            responses = responses.concat(_responses);
-        }
-
-
-        if (this.isEnd() === false && this._emitter.getState() === "out") {
-            this._emitter.setState("in");
-        }
-
-        return responses;
-
-    }
     async out(request) {
-        const responses = []
+        let responses = []
         const now = this.loader.getNow();
         if (now.out) {
-            const response = await now.out(request, this._context);
+            const response = await this._call('out', now, request, this._context);
             responses.push(response);
+            if (this._emitter.getState() !== 'out') {
+                return responses
+            }
         }
 
 
 
-        while (this.loader.positionState.isSubLoopEnd === true && this._emitter.getState() === 'out') {
+        while (this.loader.positionState.isSubLoopEnd === true && this._emitter.getState() === 'out' && this.loader.isTopLoop() === false) {
             this.loader.forward()
             const _responses = await this._emitter.emit("returnFromSub", request);
             responses = responses.concat(_responses);
             if (this.isEnd() === true) {
                 return responses;
             }
+            if (this._emitter.getState() === 'out' && this.loader.isTopLoop() === true) {
+                break
+            }
 
 
 
         }
-        this._emitter.setState("in")
+        if (this._emitter.getState() === 'out') {
+            this._emitter.setState("in")
+        }
+
+
+
         return responses;
     }
-    async forwardToSub(request, subid, subLoopInit) {
+    async forwardToSub(request, subid, subkey, subLoopInit) {
         const now = this.loader.getNow()
         const responses = []
         let _subLoopInit = subLoopInit || {}
@@ -209,13 +205,13 @@ class StateController extends JSONSerializer {
             /**
              * @type {StateResponse}
              */
-            const _response = await now.forwardToSub(request, subid);
+            const _response = await this._call('forwardToSub', now, request, subid, subkey, subLoopInit);
             responses.push(_response)
             subLoopInit = Object.assign({}, _subLoopInit, _response.subLoopInit)
 
         }
 
-        const subloopStep = this.loader.forwardToSub(subid)
+        const subloopStep = this.loader.forwardToSub(subid, subkey)
         this._context.forwardToSub(_subLoopInit)
         const _responses = await this._inProcess(request, subloopStep);
         return responses.concat(_responses);
@@ -245,7 +241,7 @@ class StateController extends JSONSerializer {
         if (now.returnFromSub) {
 
 
-            const response = await this._call('returnFromSub', now, request,)
+            const response = await this._call('returnFromSub', now, request)
             responses.push(response);
         }
         return responses;

@@ -1,18 +1,25 @@
 const assert = require('node:assert');
 const { Saver, Loader } = require('./save_and_load')
-
+/**
+ * @template O
+ * @template I
+ * @typedef {{option:O, language:string, i18n:I}} mockRequest<O, I>
+ */
 
 describe('Save and Load', function () {
 
     it('Basic Flow', function () {
-        let mockBulderArgs;
+        let mockArg = { options: null, language: null, i18n: null }
         /**
          * 
          * @type {import('../plugin').Builder}
          */
         function mockBulder(options, language, i18n) {
-            mockBulderArgs = args;
-
+            return {
+                in: function () {
+                    return { options, language, i18n }
+                }
+            }
         }
         /**
          * @type {import('./base_type').DocumentLoader}

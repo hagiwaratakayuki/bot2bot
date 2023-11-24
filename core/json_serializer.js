@@ -18,7 +18,11 @@ class JSONSerializer {
                 continue;
             }
             const element = this[key];
+
             const elementType = typeof element;
+            if (!element && elementType === 'object') {
+                continue;
+            }
             if (elementType === 'undefined' || elementType === 'function') {
                 continue;
             }

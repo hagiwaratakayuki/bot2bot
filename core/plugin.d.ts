@@ -13,6 +13,7 @@ export type Builder = (options: any, language?: string, i18n?: any) => PlugIn
 export type StateResponse = {
     state?: state
     subid?: number
+    subkey?: string
     callback?: string //Funcname Use when state is keep. Default is "keep"
     subLoopInit?: any
 }

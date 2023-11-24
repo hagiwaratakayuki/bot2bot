@@ -1,3 +1,4 @@
+import { Basic } from "../../bot2bot/connecter/basic";
 import { Builder, PlugIn } from "../plugin";
 
 
@@ -43,13 +44,12 @@ export type LoopState<T> = {
 }
 export type LoopStep = {
     bID: string
-    o: Object
-    s: {
-        [key: string]: LoopState<LoopStep>
-    }
-
+    o: any
+    s: Record<string, LoopState<LoopStep>>
 
 }
+
+
 
 
 
@@ -57,7 +57,7 @@ export type PositionState {
     isEnd: boolean
     isSubLoopEnd: boolean
 }
-export type LoopStepPath = number[]
+export type LoopStepPath = [number[], number[]]
 
 export type DocumentPropertis = Array<keyof Document>
 export type SubLoopDocumentList = { subid: any, document: Document }[]
@@ -72,15 +72,19 @@ export interface BasicLoader {
     back(): PlugIn
     backAll(): PlugIn
 
-    forwardToSub(subid?: any): PlugIn
+    forwardToSub(subid?: any,): PlugIn
     getNow(): PlugIn
     buildStep(loopStep: LoopStep): PlugIn
     getStartStep(): PlugIn[]
     getSubLoopDocuments(language: string, filter?: DocumentPropertis): SubLoopDocumentList
     getSubLoopDocument(subid: any, language: string, filter?: DocumentPropertis): Document
+    isTopLoop(): boolean
+    getSubKey(): any
 
 
 
 
 
 }
+
+
