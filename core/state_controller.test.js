@@ -19,9 +19,9 @@ describe('Executer', function () {
         let keepArgs;
         let callBackName;
         /**
-         * 
+         * @type {{[k in import('./state_emitter').state]:{options: any, language: any, i18n:any}}}
          */
-        let builderArgs = { options: null, language: null, i18n: null };
+        let builderArgs = {};
         /**
          * 
          * @param {MockArg} args 
@@ -65,32 +65,32 @@ describe('Executer', function () {
                         ret.state = "keep"
                         ret.callback = callback
                     }
-                    builderArgs = { options, language, i18n }
+                    builderArgs['in'] = { options, language, i18n }
                     return ret;
 
 
                 },
                 out: function (...args) {
                     outArgs = args;
-                    builderArgs = { options, language, i18n }
+                    builderArgs['out'] = { options, language, i18n }
                     return { mode: "out" };
                 },
                 keep: function (...args) {
                     callBackName = "keep"
-                    builderArgs = { options, language, i18n }
+                    builderArgs['keep'] = { options, language, i18n }
                     return keepfunc(args)
 
                 },
                 keepTest: function (...args) {
                     callBackName = "keepTest"
-                    builderArgs = { options, language, i18n }
+                    builderArgs['keep'] = { options, language, i18n }
                     return keepfunc(args)
 
                 },
                 returnFromSub: function (...args) {
                     isReturnFromSubCalled = true
-                    builderArgs = { options, language, i18n }
-                    return {}
+                    builderArgs['returnFromSub'] = { options, language, i18n }
+                    return { mode: "returnFromSub" }
                 }
 
 
@@ -148,9 +148,10 @@ describe('Executer', function () {
 
         let controlller = new StateController(loader);
         let res = await controlller.run({}, { loader: jsonData });
-        console.log(inArgs);
+        /*console.log(inArgs);
         console.log(outArgs);
         console.log(res);
+        */
 
         jsonData = controlller.toJSON()
 
@@ -169,10 +170,13 @@ describe('Executer', function () {
         let mockRequest = { isForwardToSub: true, subid: 1 }
 
         res = await controlller.run(mockRequest);
-        console.log(keepArgs)
-        console.log(inArgs)
-        console.log(mockBulderArgs);
-        console.log(controlller.loader.positionState)
+        assert(builderArgs['in'].options.selectoption, 1)
+        assert(res[3].mode, 'returnFromSub');
+        assert(res[4].mode, 'out');
+        /* console.log(keepArgs)
+         console.log(inArgs)
+         console.log(mockBulderArgs);
+         console.log(controlller.loader.positionState)*/
 
 
 
