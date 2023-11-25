@@ -239,6 +239,7 @@ class StateController extends JSONSerializer {
             const response = await this._call('returnFromSub', now, request)
             responses.push(response);
         }
+
         return responses;
 
 

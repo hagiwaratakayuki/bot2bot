@@ -80,6 +80,7 @@ export interface BasicLoader {
     getSubLoopDocument(subid: any, language: string, filter?: DocumentPropertis): Document
     isTopLoop(): boolean
     getSubKey(): any
+    test: any
 
 
 
