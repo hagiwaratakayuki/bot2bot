@@ -265,7 +265,7 @@ class StateController extends JSONSerializer {
          * @type {StateResponse}
          */
         const response = await plugins[funcname].call(plugins, request, this._context, this, ...args) || {}
-        this._history.push({ request, response, context, loopStepPath: this.loader.getLoopStepPath(), state: this._emitter.getState() })
+        this._history.push({ request, response, context, loopStepPath: this.loader.getStepIndex(), state: this._emitter.getState() })
         this._emitter.setState(response.state || "out");
         return response;
 

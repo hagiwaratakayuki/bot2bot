@@ -58,10 +58,10 @@ class Brige extends JSONSerializer {
          */
         this.loopStepKeyPath = ['']
     }
-    getLoopStepPath() {
+    getStepIndex() {
         return [[].concat(this.loopStepPath), [].concat(this.loopStepKeyPath)]
     }
-    setLoopStepPath([loopStepPath, loopStepKeyPath]) {
+    setStepIndex([loopStepPath, loopStepKeyPath]) {
         this.loopStepPath = [].concat(loopStepPath)
         this.loopStepKeyPath = [].concat(loopStepKeyPath)
 
@@ -117,7 +117,17 @@ class Brige extends JSONSerializer {
         const _loopStepKeyPath = loopStepKeyPath || this.loopStepKeyPath
         return this._getLoopStep(_loopStepPath.slice(0, -1), _loopStepKeyPath.slice(0, -1))
     }
-
+    /**
+    * 
+    * @param {number[]?} loopStepPath
+    * @param {string[]?} loopStepKeyPath
+    */
+    _getLoopState(loopStepPath, loopStepKeyPath) {
+        const _loopStepPath = loopStepPath || this.loopStepPath
+        const _loopStepKeyPath = loopStepKeyPath || this.loopStepKeyPath
+        const superLoopStep = this._getSuperLoopStep(_loopStepPath.slice(0, -1), _loopStepKeyPath.slice(0, -1))
+        return superLoopStep.s[_loopStepKeyPath[loopStepKeyPath.length - 1]]
+    }
 
 
 
@@ -227,7 +237,21 @@ const Loader = class extends Brige {
         this._i18n = i18n
 
     }
+    setStepIndex(stepIndex) {
+        super.setStepIndex(stepIndex)
+        const loopState = this._getLoopState();
+        const step = loopStepPath[loopStepPath.length - 1];
 
+        if (loopState.stp.length - 1 === step) {
+
+            this.positionState.isEnd = this.isTopLoop();
+            this.positionState.isSubLoopEnd = true
+        }
+        else {
+            this.positionState = { isEnd: false, isSubLoopEnd: false }
+        }
+
+    }
     isTopLoop() {
         return this.loopStepPath.length === 1
     }
@@ -250,8 +274,31 @@ const Loader = class extends Brige {
         const filters = ['_cache', '_cacheKey', '_isFirst', '_i18n', '_language'];
         return super._toJSON(filters);
     }
+    /**
+     * @typedef {[number[], string[]]} LoopStepIndex
+     * @param {LoopStepIndex} indexA 
+     * @param {LoopStepIndex} indexB 
+     */
+    isIndexEqual(indexA, indexB) {
+        const [loopStepPathA, loopStepKeyPathA] = indexA
+        const [loopStepPathB, loopStepKeyPathB] = indexB
+        if (loopStepKeyPathA.length !== loopStepKeyPathB.length) {
+            return false
 
+        }
 
+        let index = loopStepPathA.length - 1;
+        while (index > 0) {
+            if (loopStepPathA[index] !== loopStepPathB[index] || loopStepKeyPathA[index] !== loopStepKeyPathB[index]) {
+                return false;
+
+            }
+            index--;
+
+        }
+        return true;
+
+    }
     forward() {
 
 
@@ -315,7 +362,7 @@ const Loader = class extends Brige {
      * @param {number | "end" | "start"} [move=-1]  
      */
     getRelativePosition(loop = "now", move = -1) {
-        let [loopStepPath, loopStepKeyPath] = this.getLoopStepPath()
+        let [loopStepPath, loopStepKeyPath] = this.getStepIndex()
         if (loop === "top") {
             loopStepPath = loopStepPath.slice(0, 1);
             loopStepKeyPath = loopStepKeyPath.slice(0, 1);
@@ -329,8 +376,8 @@ const Loader = class extends Brige {
         }
 
         if (move === "end") {
-            const superLoopStep = this._getSuperLoopStep(loopStepPath, loopStepKeyPath);
-            loopStepPath[loopStepPath.length - 1] = superLoopStep.s[loopStepKeyPath[loopStepKeyPath.length - 1]].stp.length - 1;
+            const loopState = this._getLoopState(loopStepPath, loopStepKeyPath);
+            loopStepPath[loopStepPath.length - 1] = loopState.stp.length - 1
 
 
 
@@ -342,7 +389,7 @@ const Loader = class extends Brige {
         }
         if (loop === "now") {
             const tailIndex = loopStepPath.length - 1
-            const superLoopStep = this._getSuperLoopStep(loopStepPath, loopStepKeyPath);
+            const loopState = this._getLoopState(loopStepPath, loopStepKeyPath)
             const targetStep = loopStepPath[tailIndex] + move
             if (superLoopStep.s[loopStepKeyPath[tailIndex]].stp.length - 1 < targetStep || targetStep < 0) {
                 throw "can not move"

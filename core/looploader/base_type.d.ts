@@ -57,7 +57,7 @@ export type PositionState {
     isEnd: boolean
     isSubLoopEnd: boolean
 }
-export type LoopStepPath = [number[], number[]]
+export type LoopStepIndex = any
 
 export type DocumentPropertis = Array<keyof Document>
 export type SubLoopDocumentList = { subid: any, document: Document }[]
@@ -66,11 +66,12 @@ export interface BasicLoader {
 
     positionState: PositionState
     resetPosition(): void
-    getLoopStepPath(): LoopStepPath
-    setLoopStepPath(LoopStepPath: LoopStepPath): void
+    getStepIndex(): LoopStepIndex
+    setStepIndex(loopStepIndex: LoopStepIndex): void
     forward(): PlugIn
     back(): PlugIn
     backAll(): PlugIn
+    isIndexEqual(indexA: LoopStepIndex, indexB: LoopStepIndex): boolean
 
     forwardToSub(subid?: any,): PlugIn
     getNow(): PlugIn
