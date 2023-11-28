@@ -127,7 +127,7 @@ class StateController extends JSONSerializer {
         const response = await this._call(headResponse.callback || "keep", now, request)
         responses.push(response);
 
-        const _responses = await this._checkForwordState(request, response);
+        const _responses = await this._checkState(request, response);
         responses = responses.concat(_responses)
 
         return responses;
@@ -140,7 +140,7 @@ class StateController extends JSONSerializer {
      *  
      * @returns 
      */
-    async _checkForwordState(request, response) {
+    async _checkState(request, response) {
         let responses = [];
         const state = this._emitter.getState();
         if (state !== 'keep') {
@@ -192,24 +192,33 @@ class StateController extends JSONSerializer {
 
         return responses;
     }
-    async forwardToSub(request, { subid, subkey, subLoopInit }) {
-        const now = this.loader.getNow()
-        const responses = []
-        let _subLoopInit = subLoopInit || {}
-        if (now.forwardToSub) {
-            /**
-             * @type {StateResponse}
-             */
-            const _response = await this._call('forwardToSub', now, request, subid, subkey, subLoopInit);
-            responses.push(_response)
-            subLoopInit = Object.assign({}, _subLoopInit, _response.subLoopInit)
+    /**
+     * 
+     * @param {any} request 
+     * @param {{ subid?:any, subkey?:any, subLoopInit?:any }} response 
+     * @returns 
+     */
+    async forwardToSub(request, response) {
+
+        let responses = []
+        let _subLoopInit = response.subLoopInit || {}
+        const hookResponses = await this._callHookFunction(request, response, false);
+        for (const hookResponse of hookResponses) {
+            if (!!hookResponse.subLoopInit === true) {
+                _subLoopInit = Object.assign(_subLoopInit, hookResponse.subLoopInit)
+            }
 
         }
+        if (this._emitter.getState() === "forwardToSub") {
+            const subloopStep = this.loader.forwardToSub(response.subid, response.subkey)
+            this._context.forwardToSub(_subLoopInit)
+            const _responses = await this._inProcess(request, subloopStep);
+            responses = responses.concat(_responses);
+        }
+        return responses
 
-        const subloopStep = this.loader.forwardToSub(subid, subkey)
-        this._context.forwardToSub(_subLoopInit)
-        const _responses = await this._inProcess(request, subloopStep);
-        return responses.concat(_responses);
+
+
 
 
     }
@@ -224,33 +233,64 @@ class StateController extends JSONSerializer {
         const responses = [];
 
         responses.push(response)
-        const _responses = await this._checkForwordState(request, response);
+        const _responses = await this._checkState(request, response);
 
 
         return responses.concat(_responses)
     }
-    async returnFromSub(request) {
+    returnFromSub(request, response) {
         const responses = []
-        const now = this.loader.getNow();
+
         this._context.returnFromSub();
-        if (now.returnFromSub) {
+
+        return this._callHookFunction("returnFromSub", request, response);
 
 
-            const response = await this._call('returnFromSub', now, request)
-            responses.push(response);
+    }
+    back(request, response) {
+        const stepIndex = this.loader.getRelativePosition("now", -1)
+        this.loader.setStepIndex(stepIndex)
+        return this._callHookFunction("back", request, response)
+    }
+    break(request, response) {
+        const stepIndex = this.loader.getRelativePosition("super")
+        this.loader.setStepIndex(stepIndex)
+        this._context.returnFromSub()
+        return this._callHookFunction("break", request, response)
+    }
+    continue(request, response) {
+        const stepIndex = this.loader.getRelativePosition("now", "start")
+        this.loader.setStepIndex(stepIndex)
+        return this._callHookFunction("continue", request, response)
+
+    }
+    /**
+     * 
+     * @param {state} state 
+     * @param {any} request 
+     * @param {any} response 
+     * @param {boolean} [isAutoForword=true] 
+     */
+    async _callHookFunction(state, request, response, isAutoForword = true) {
+        let responses = []
+        const now = this.loader.getNow();
+        const callable = !!now[state]
+        if (callable) {
+            await this._call(state, now, request, response)
+            const state = this._emitter.getState()
+            if (state !== "out" && state !== "keep") {
+                const _responses = await this._emitter.run(request, response);
+                responses = responses.concat(_responses)
+            }
+
         }
 
+        if (isAutoForword === true && this.isEnd() !== true && (callable === false || this._emitter.getState() === "out")) {
+            this._emitter.setState("in")
+
+        }
         return responses;
 
-
-    }
-    async cancelback() {
-
-    }
-    async end() {
-
-    }
-    async cancel() {
 
     }
     /**
