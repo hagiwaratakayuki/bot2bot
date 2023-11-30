@@ -13,7 +13,7 @@ const merge = require('deepmerge')
  * @type {Array<state>}
  */
 
-const stateKeys = ["start", "in", "keep", "out", "forwardToSub", "returnFromSub", "cancelback", "end", "out", "cancel"]
+const stateKeys = ["start", "in", "keep", "forwardOut", "forwardToSub", "returnFromSub", "back", 'break', 'continue']
 
 
 /**
@@ -151,41 +151,50 @@ class StateController extends JSONSerializer {
         return responses
     }
 
-    async out(request, response) {
+    async forwardOut(request, response) {
         let responses = []
         const now = this.loader.getNow();
-        if (now.out) {
-            const response = await this._call('out', now, request);
-            responses.push(response);
-            if (this._emitter.getState() !== 'out') {
-                return responses
+        if (now.forwardOut) {
+            const _response = await this._call('forwardOut', now, request, response);
+            responses.push(_response);
+            const state = this._emitter.getState()
+            if (state !== 'forwardOut') {
+                if (state === "keep") {
+                    return responses
+
+                }
+                const _responses = await this._emitter.run(request, response);
+                return responses.concat(_responses)
+
+
             }
         }
 
 
 
-        while (this.loader.positionState.isSubLoopEnd === true && this._emitter.getState() === 'out' && this.loader.isTopLoop() === false) {
+        while (this.loader.positionState.isSubLoopEnd === true && this._emitter.getState() === 'forwardOut' && this.loader.isTopLoop() === false) {
             this.loader.forward()
-            let _responses = await this._emitter.emit("returnFromSub", request);
+            let _responses = await this._emitter.emit("returnFromSub", request, response, false);
             responses = responses.concat(_responses);
             let _state = this._emitter.getState();
-            if (_state !== 'out') {
+            if (_state !== 'forwardOut') {
                 if (_state === 'keep') {
                     return responses
                 }
                 const _responses = await this._emitter.run(request, response)
                 responses = responses.concat(_responses)
             }
-            const _now = this.loader.getNow();
-            if (_now.out) {
-                const response = await this._call('out', _now, request);
-                responses.push(response);
 
-            }
 
         }
-        if (this.isEnd() === false && this._emitter.getState() === 'out') {
+        if (this.isEnd() === false && this._emitter.getState() === 'forwardOut') {
+
             this._emitter.setState("in")
+        }
+        if (this._emitter.getState() === "in") {
+
+            const inResponses = await this._emitter.run(request)
+            responses = responses.concat(inResponses)
         }
 
 
@@ -202,13 +211,14 @@ class StateController extends JSONSerializer {
 
         let responses = []
         let _subLoopInit = response.subLoopInit || {}
-        const hookResponses = await this._callHookFunction(request, response, false);
+        const hookResponses = await this._callHookFunction("forwardToSub", request, response, false);
         for (const hookResponse of hookResponses) {
             if (!!hookResponse.subLoopInit === true) {
-                _subLoopInit = Object.assign(_subLoopInit, hookResponse.subLoopInit)
+                _subLoopInit = Object.assign(_subLoopInit, hookResponse.subLoopInit || {})
             }
 
         }
+        responses = responses.concat(hookResponses)
         if (this._emitter.getState() === "forwardToSub") {
             const subloopStep = this.loader.forwardToSub(response.subid, response.subkey)
             this._context.forwardToSub(_subLoopInit)
@@ -238,30 +248,33 @@ class StateController extends JSONSerializer {
 
         return responses.concat(_responses)
     }
-    returnFromSub(request, response) {
-        const responses = []
+    returnFromSub(request, response, isAutoForward = true) {
 
+        this._context.subKey = this.loader.getSubKey();
         this._context.returnFromSub();
 
-        return this._callHookFunction("returnFromSub", request, response);
+
+        return this._callHookFunction("returnFromSub", request, response, isAutoForward);
 
 
     }
-    back(request, response) {
+    back(request, response, isAutoForward = true) {
         const stepIndex = this.loader.getRelativePosition("now", -1)
         this.loader.setStepIndex(stepIndex)
-        return this._callHookFunction("back", request, response)
+        return this._callHookFunction("back", request, response, isAutoForward)
     }
-    break(request, response) {
-        const stepIndex = this.loader.getRelativePosition("super")
+    break(request, response, isAutoForward = true) {
+
+        this._context.subKey = this.loader.getSubKey();
         this.loader.setStepIndex(stepIndex)
+        const stepIndex = this.loader.getRelativePosition("super")
         this._context.returnFromSub()
-        return this._callHookFunction("break", request, response)
+        return this._callHookFunction("break", request, response, isAutoForward)
     }
-    continue(request, response) {
+    continue(request, response, isAutoForward = true) {
         const stepIndex = this.loader.getRelativePosition("now", "start")
         this.loader.setStepIndex(stepIndex)
-        return this._callHookFunction("continue", request, response)
+        return this._callHookFunction("continue", request, response, isAutoForward)
 
     }
     /**
@@ -269,24 +282,30 @@ class StateController extends JSONSerializer {
      * @param {state} state 
      * @param {any} request 
      * @param {any} response 
-     * @param {boolean} [isAutoForword=true] 
+     * @param {boolean} [isAutoForward=true] 
      */
-    async _callHookFunction(state, request, response, isAutoForword = true) {
+    async _callHookFunction(state, request, response, isAutoForward = true) {
         let responses = []
         const now = this.loader.getNow();
         const callable = !!now[state]
         if (callable) {
             await this._call(state, now, request, response)
-            const state = this._emitter.getState()
-            if (state !== "out" && state !== "keep") {
-                const _responses = await this._emitter.run(request, response);
+            const responseState = this._emitter.getState()
+            if (responseState !== state && responseState !== "forwardOut" && responseState !== "keep") {
+                const _responses = await this._emitter.run(request, response, isAutoForward);
                 responses = responses.concat(_responses)
             }
 
         }
 
-        if (isAutoForword === true && this.isEnd() !== true && (callable === false || this._emitter.getState() === "out")) {
+
+        if (isAutoForward === true && this.isEnd() === false && (callable === false || this._emitter.getState() === "forwardOut")) {
             this._emitter.setState("in")
+
+        }
+        if (isAutoForward === true && this._emitter.getState() === "in") {
+            const inResponses = await this._emitter.run(request)
+            responses = responses.concat(inResponses)
 
         }
         return responses;
@@ -306,7 +325,7 @@ class StateController extends JSONSerializer {
          */
         const response = await plugins[funcname].call(plugins, request, this._context, this, ...args) || {}
         this._history.push({ request, response, context, loopStepPath: this.loader.getStepIndex(), state: this._emitter.getState() })
-        this._emitter.setState(response.state || "out");
+        this._emitter.setState(response.state || "forwardOut");
         return response;
 
     }
@@ -316,7 +335,7 @@ class StateController extends JSONSerializer {
     }
     isEnd() {
 
-        return this.loader.positionState.isEnd === true && this._emitter.getState() === "out";
+        return this.loader.positionState.isEnd === true && this._emitter.getState() === "forwardOut";
     }
 }
 

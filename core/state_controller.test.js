@@ -60,7 +60,7 @@ describe('Executer', function () {
                     /**
                      * @type {StateResponse}
                      */
-                    const ret = { state: "out" };
+                    const ret = { state: "forwardOut", mode: 'in' };
                     if (isKeep) {
                         ret.state = "keep"
                         ret.callback = callback
@@ -70,10 +70,10 @@ describe('Executer', function () {
 
 
                 },
-                out: function (...args) {
+                forwardOut: function (...args) {
                     outArgs = args;
                     builderArgs['out'] = { options, language, i18n }
-                    return { mode: "out" };
+                    return { mode: "forwardOut" };
                 },
                 keep: function (...args) {
                     callBackName = "keep"
@@ -122,14 +122,14 @@ describe('Executer', function () {
         }
         saver.buildersRegistration(builderConfigMap);
         saver.addLoopStep('test', { loop: 1 })
-        saver.addLoopStep('test', { loop: 2, isKeep: true })
+        saver.addLoopStep('test', { loop: 2, isKeep: true, callback: "keep" })
         saver.startSubLoop('loop');
         saver.addLoopStep('test', { subloop: 1 });
         saver.addLoopStep('test', { subloop: 2 });
 
         saver.endSubLoop();
 
-        saver.addLoopStep('test', { loop: 3, isKeep: true })
+        saver.addLoopStep('test', { loop: 3, isKeep: true, callback: "keep" })
         saver.startSubLoop('selection');
         saver.addLoopStep('test', { selectoption: 1 });
         saver.addLoopStep('test', { selectoption: 2 });
@@ -155,15 +155,15 @@ describe('Executer', function () {
 
         jsonData = controlller.toJSON()
 
-        loader = new Loader(true)
+        loader = new Loader()
         loader.buildersRegistration(builderConfigMap);
         controlller = new StateController(loader);
 
-        res = await controlller.run({}, jsonData);
-        res = await controlller.run({});//keep here
-        res = await controlller.run({ isForwardToSub: true }); // forward to sub
-        res = await controlller.run({}); //step sub 
-        res = await controlller.run({});
+        res = await controlller.run({ isForwardToSub: true }, jsonData);//resume , keep here -> forword to sub -> run subloop  all -> return sub -> keep
+        assert(controlller._emitter.getState(), "keep")
+
+        //res = await controlller.run({}); //step sub call next in  
+
         /**
          * @type {SubloopRequest}
          */
@@ -171,8 +171,8 @@ describe('Executer', function () {
 
         res = await controlller.run(mockRequest);
         assert(builderArgs['in'].options.selectoption, 1)
-        assert(res[3].mode, 'returnFromSub');
-        assert(res[4].mode, 'out');
+        assert(res[0].state, 'returnFromSub');
+        assert(res[1].state, 'forwardOut');
         /* console.log(keepArgs)
          console.log(inArgs)
          console.log(mockBulderArgs);
