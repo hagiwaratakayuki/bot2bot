@@ -8,6 +8,7 @@ const merge = require('deepmerge')
 /**
  * @typedef {import("./state_emitter").state} state
  * @typedef {import("./plugin").PlugIn} PlugIns
+ * @typedef {{ request:any, response:any, context:any, loopStepIndex:any, state:state }} HistoryRecord
  */
 /** 
  * @type {Array<state>}
@@ -258,10 +259,44 @@ class StateController extends JSONSerializer {
 
 
     }
-    back(request, response, isAutoForward = true) {
+    async back(request, response) {
         const stepIndex = this.loader.getRelativePosition("now", -1)
         this.loader.setStepIndex(stepIndex)
-        return this._callHookFunction("back", request, response, isAutoForward)
+        const responses = await this._callHookFunction("back", request, response, false)
+        if (this._emitter.getState() === "back") {
+            /**
+             * @type {import('./plugin').BackTarget}
+             */
+            let backTarget = response.backTarget || "in";
+            for (const resp of responses) {
+                backTarget = resp?.backTarget || backTarget
+            }
+            const limit = this._history.getNowHistoryLength() - 1;
+            for (let index = 0; index < limit; index++) {
+                /** @type {HistoryRecord} */
+                const { loopStepIndex, state, request: _request, context } = this._history.back();
+                if (state !== "in") {
+                    continue;
+                }
+                if (this.loader.isIndexEqual(loopStepIndex) === false) {
+                    this.continue;
+
+                }
+                this._history.back();
+                this._context = context;
+                this._emitter.setState(state)
+                const _response = await this._emitter.run(_request)
+                responses.push(_response)
+
+
+            }
+
+        }
+
+
+
+        return responses
+
     }
     break(request, response, isAutoForward = true) {
 
@@ -291,7 +326,7 @@ class StateController extends JSONSerializer {
         if (callable) {
             await this._call(state, now, request, response)
             const responseState = this._emitter.getState()
-            if (responseState !== state && responseState !== "forwardOut" && responseState !== "keep") {
+            if (responseState !== state && responseState !== "keep") {
                 const _responses = await this._emitter.run(request, response, isAutoForward);
                 responses = responses.concat(_responses)
             }
@@ -320,11 +355,16 @@ class StateController extends JSONSerializer {
     async _call(funcname, plugins, request, ...args) {
 
         const context = merge({}, this._context.toJSON())
+        const state = stateKeys.indexOf(funcname) !== -1 ? this._emitter.getState() : funcname
         /**
          * @type {StateResponse}
          */
         const response = await plugins[funcname].call(plugins, request, this._context, this, ...args) || {}
-        this._history.push({ request, response, context, loopStepPath: this.loader.getStepIndex(), state: this._emitter.getState() })
+        /**
+         * @type {HistoryRecord}
+         */
+        const record = { request, response, context, loopStepIndex: this.loader.getStepIndex(), state }
+        this._history.push(record)
         this._emitter.setState(response.state || "forwardOut");
         return response;
 

@@ -18,6 +18,7 @@ describe('Executer', function () {
         let outArgs;
         let keepArgs;
         let callBackName;
+        let inCount = 0;
         /**
          * @type {{[k in import('./state_emitter').state]:{options: any, language: any, i18n:any}}}
          */
@@ -66,6 +67,7 @@ describe('Executer', function () {
                         ret.callback = callback
                     }
                     builderArgs['in'] = { options, language, i18n }
+                    inCount++
                     return ret;
 
 
@@ -148,21 +150,19 @@ describe('Executer', function () {
 
         let controlller = new StateController(loader);
         let res = await controlller.run({}, { loader: jsonData });
-        /*console.log(inArgs);
-        console.log(outArgs);
-        console.log(res);
-        */
+
 
         jsonData = controlller.toJSON()
 
         loader = new Loader()
         loader.buildersRegistration(builderConfigMap);
         controlller = new StateController(loader);
-
+        inCount = 0
         res = await controlller.run({ isForwardToSub: true }, jsonData);//resume , keep here -> forword to sub -> run subloop  all -> return sub -> keep
+        assert(inCount, 3)
         assert(controlller._emitter.getState(), "keep")
 
-        //res = await controlller.run({}); //step sub call next in  
+
 
         /**
          * @type {SubloopRequest}
@@ -173,15 +173,6 @@ describe('Executer', function () {
         assert(builderArgs['in'].options.selectoption, 1)
         assert(res[0].state, 'returnFromSub');
         assert(res[1].state, 'forwardOut');
-        /* console.log(keepArgs)
-         console.log(inArgs)
-         console.log(mockBulderArgs);
-         console.log(controlller.loader.positionState)*/
-
-
-
-
-
 
     });
 

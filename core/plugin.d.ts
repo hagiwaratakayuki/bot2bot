@@ -7,7 +7,7 @@ export type PlugIn = Partial<{
     in: Function
 }
 
-
+export type BackTarget = "in" | "latest"
 export type Builder = (options: any, language?: string, i18n?: any) => PlugIn
 
 export type StateResponse = {
@@ -16,5 +16,7 @@ export type StateResponse = {
     subkey?: string
     callback?: string //Funcname Use when state is keep. Default is "keep"
     subLoopInit?: any
+    backTarget?: BackTarget
+
 }
 

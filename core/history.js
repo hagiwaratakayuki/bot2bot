@@ -24,7 +24,8 @@ class History extends JSONSerializer {
     push(history) {
         const nowHistories = this._getNowHistories();
         nowHistories.push(history);
-        this._cursor = nowHistories.length - 1
+        this._setNowHistries(nowHistories)
+
 
     }
     getHead() {
@@ -59,6 +60,16 @@ class History extends JSONSerializer {
         this._breakPointsList[this._historyId] = breakpoints
 
     }
+    getNowHistoryLength() {
+        return this._getNowHistories().length
+    }
+    back(move = 1) {
+        const nowHistories = this._getNowHistories();
+        const backedHistories = nowHistories.slice(0, nowHistories.length - move)
+        this._setNowHistries(backedHistories)
+        return this.getHead();
+
+    }
     /**
      * 
      * @param {any} name 
@@ -80,6 +91,10 @@ class History extends JSONSerializer {
 
     _getNowHistories() {
         return this._histories[this._historyId];
+    }
+    _setNowHistries(histories) {
+        this._histories[this._historyId] = histories;
+        this._cursor = histories.length
     }
 
 
