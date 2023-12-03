@@ -32,6 +32,7 @@ class StateController extends JSONSerializer {
      */
     constructor(loader, contextClass = Context, emitterClass = StateEmitter, historyClass = History) {
         super();
+        this.isDebug = false
         /**
          * @type {BasicLoader}
          */
@@ -267,10 +268,8 @@ class StateController extends JSONSerializer {
             /**
              * @type {import('./plugin').BackTarget}
              */
-            let backTarget = response.backTarget || "in";
-            for (const resp of responses) {
-                backTarget = resp?.backTarget || backTarget
-            }
+            let backTarget = "in";
+
             const limit = this._history.getNowHistoryLength() - 1;
             for (let index = 0; index < limit; index++) {
                 /** @type {HistoryRecord} */
@@ -285,6 +284,7 @@ class StateController extends JSONSerializer {
                 this._history.back();
                 this._context = context;
                 this._emitter.setState(state)
+                this.loader.setStepIndex(loopStepIndex)
                 const _response = await this._emitter.run(_request)
                 responses.push(_response)
 
@@ -353,19 +353,29 @@ class StateController extends JSONSerializer {
      * @param {PlugIns} plugins  
      */
     async _call(funcname, plugins, request, ...args) {
+        let context;
+        /**
+         * @type {state}
+         */
+        const callState = stateKeys.indexOf(funcname) !== -1 ? this._emitter.getState() : funcname
+        if (this.isDebug === true || callState === "in" || callState === "keep") {
+            context = merge({}, this._context.toJSON())
+        }
 
-        const context = merge({}, this._context.toJSON())
-        const state = stateKeys.indexOf(funcname) !== -1 ? this._emitter.getState() : funcname
+
         /**
          * @type {StateResponse}
          */
         const response = await plugins[funcname].call(plugins, request, this._context, this, ...args) || {}
-        /**
-         * @type {HistoryRecord}
-         */
-        const record = { request, response, context, loopStepIndex: this.loader.getStepIndex(), state }
-        this._history.push(record)
-        this._emitter.setState(response.state || "forwardOut");
+        if (this.isDebug === trye || callState === "in" || callState === "keep") {
+            /**
+             * @type {HistoryRecord}
+             */
+            const record = { request, response, context, loopStepIndex: this.loader.getStepIndex(), state: callState }
+            this._history.push(record)
+            this._emitter.setState(response.state || "forwardOut");
+        }
+
         return response;
 
     }
